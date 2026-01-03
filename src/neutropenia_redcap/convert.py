@@ -1,7 +1,7 @@
 import argparse
 import logging
-from .formats import Formats, valid_format_choices
 
+from .formats import Formats, valid_format_choices
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("--data_location", type=str)
