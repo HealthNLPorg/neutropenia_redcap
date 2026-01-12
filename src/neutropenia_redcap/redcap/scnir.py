@@ -10,7 +10,7 @@ MAXIMUM_VARIANTS = 4
 
 def nth_germline_testing_information(n: int) -> list[str]:
     if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
-        ValueError(
+        raise ValueError(
             f"Currently only supporting up to 3 germline variants, you provided {n}"
         )
         return []
@@ -41,7 +41,7 @@ def nth_germline_testing_information(n: int) -> list[str]:
 
 def nth_germline_information(n: int) -> Iterable[str]:
     if n < 1 or n > 3:
-        ValueError(
+        raise ValueError(
             f"Currently only supporting up to 3 germline variants, you provided {n}"
         )
         return []
@@ -56,12 +56,12 @@ def nth_germline_parental_variant_id_information(
     n: int, variant_id: int
 ) -> Iterable[str]:
     if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
-        ValueError(
+        raise ValueError(
             f"Currently only supporting up to 3 germline variant_ids, you provided {n}"
         )
         return []
     if variant_id < MINIMUM_VARIANTS or variant_id > MAXIMUM_VARIANTS:
-        ValueError(
+        raise ValueError(
             f"Currently only supporting up to 3 germline variant_ids, you provided {variant_id}"
         )
         return []
@@ -100,12 +100,12 @@ def nth_germline_parental_variant_id_information(
 
 def nth_germline_parental_variant_information(n: int, variant: int) -> Iterable[str]:
     if n < 1 or n > 3:
-        ValueError(
+        raise ValueError(
             f"Currently only supporting up to 3 germline variants, you provided {n}"
         )
         return []
     if variant < 1 or variant > 4:
-        ValueError(
+        raise ValueError(
             f"Currently only supporting up to 3 germline variants, you provided {variant}"
         )
         return []

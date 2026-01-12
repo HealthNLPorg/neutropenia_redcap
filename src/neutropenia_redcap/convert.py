@@ -40,7 +40,7 @@ def convert(
         case Formats.RAW_TSV, Formats.REDCAP:
             raw_output_to_redcap(data_location, output_dir)
         case _:
-            ValueError(
+            raise ValueError(
                 "%s to %s not currently supported",
                 input_format.name,
                 output_format.name,
