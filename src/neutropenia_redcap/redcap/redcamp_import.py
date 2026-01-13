@@ -15,7 +15,7 @@ def nth_germline_testing_information(n: int) -> list[str]:
         )
         return []
     return [
-        f"were the germline variants found by clinical testing? [{n}]",
+        f"Were the germline variants found by clinical testing? [{n}]",
         f"type of clinical and/or research tests in which the germline variants were identified [{n}]: (choice=single gene sequencing)",
         f"type of clinical and/or research tests in which the germline variants were identified [{n}]: (choice=gene panel sequencing)",
         f"type of clinical and/or research tests in which the germline variants were identified [{n}]: (choice=whole exome sequencing (wes, exome))",
@@ -34,6 +34,11 @@ def nth_germline_testing_information(n: int) -> list[str]:
         f"sample types in which the germline variants were identified [{n}]: (choice=unknown)",
         f"Specify other sample type(s) in which the germline variants were identified [{n}]:",
         # Variant stuff
+        *nth_germline_information(n),
+        *chain.from_iterable(
+            nth_germline_parental_variant_id_information(n, variant_id)
+            for variant_id in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS)
+        ),
         f"Significance of the germline variant genetic findings [{n}]:",
         f"Has a definitive or probable causative germline variant result been confirmed by clinical testing? [{n}]",
     ]
@@ -94,7 +99,7 @@ def nth_germline_parental_variant_id_information(
         f"Germline variant {variant} PolyPhen2 score [{n}]:",
         f"Mitochondrial variant {variant} heteroplasmy (%) [{n}]:",
         f"Germline variant {variant} ACMG classification [{n}]:",
-        f"Germline variant {variant} comment [{n}]:",
+        f"Germline variant {variant} comment [{n}]:",  # Where to put text context etc.
     ]
 
 
