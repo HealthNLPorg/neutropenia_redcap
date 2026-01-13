@@ -13,6 +13,7 @@ class SCNIRVariant:
     known_heterozygous: bool
     specimen_collection_date: date | None
     sample_source: str | None
+    source_filenames: list[str]
 
 
 @dataclass
