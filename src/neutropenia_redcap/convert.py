@@ -1,7 +1,12 @@
 import argparse
 import logging
+import os
 
+import polars as pl
+
+from .filename_utils import get_mrn
 from .formats import Formats, valid_format_choices
+from .redcap.scnir import SCNIRForm
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("--data_location", type=str)
@@ -27,8 +32,19 @@ logging.basicConfig(
 )
 
 
+def mrn_cluster_to_form(mrn: int, mrn_cluster_df: pl.DataFrame) -> SCNIRForm:
+    return SCNIRForm(mrn=-1, gene_mentions=[])
+
+
 def raw_output_to_redcap(data_location: str, output_dir: str) -> None:
-    pass
+    raw_output_frame = pl.read_csv(data_location, separator="\t")
+    final_frame = pl.concat(
+        mrn_cluster_to_form(mrn, mrn_cluster_df).to_data_frame()
+        for (mrn,), mrn_cluster_df in raw_output_frame.with_columns(
+            MRN=raw_output_frame["Filename"].map_elements(get_mrn)
+        ).group_by("MRN")
+    )
+    final_frame.write_csv(os.path.join(output_dir, "beam_me_up_scotty.csv"))
 
 
 def convert(
