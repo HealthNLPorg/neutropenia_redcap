@@ -3,6 +3,13 @@ from datetime import date
 
 import polars as pl
 
+from .redcap_import import (
+    MAXIMUM_GERMLINES,
+    MAXIMUM_VARIANTS,
+    MINIMUM_GERMLINES,
+    MINIMUM_VARIANTS,
+)
+
 
 @dataclass
 class SCNIRVariant:
@@ -20,11 +27,29 @@ class SCNIRVariant:
 class SCNIRGeneMention:
     variants: list[SCNIRVariant]
 
+    def __post_init__(self) -> None:
+        if (
+            len(self.variants) < MINIMUM_VARIANTS
+            or len(self.variants) > MAXIMUM_VARIANTS
+        ):
+            raise ValueError(
+                f"Too many or too few variant mentions {len(self.variants)}"
+            )
+
 
 @dataclass
 class SCNIRForm:
     mrn: int
     gene_mentions: list[SCNIRGeneMention]
+
+    def __post_init__(self) -> None:
+        if (
+            len(self.gene_mentions) < MINIMUM_GERMLINES
+            or len(self.gene_mentions) > MAXIMUM_GERMLINES
+        ):
+            raise ValueError(
+                f"Too many or too few gene/germline mentions {len(self.gene_mentions)}"
+            )
 
     def to_data_frame(self) -> pl.DataFrame:
         return pl.DataFrame()

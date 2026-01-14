@@ -154,10 +154,17 @@ FORM_LEVEL_INFORMATION = [
     "Complete?",
 ]
 
-SCNIR_COLUMNS = list(
-    chain(
-        TESTING_INFORMATION,
-        # Germlines 1 - 3
-        FORM_LEVEL_INFORMATION,
+
+def build_scnir_columns() -> list[str]:
+    scnir_columns = list(
+        chain(
+            TESTING_INFORMATION,
+            # Germlines 1 - 3
+            chain.from_iterable(
+                nth_germline_testing_information(n)
+                for n in range(MINIMUM_GERMLINES, MAXIMUM_GERMLINES)
+            ),
+            FORM_LEVEL_INFORMATION,
+        )
     )
-)
+    return scnir_columns
