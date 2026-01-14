@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import date
+from collections.abc import Iterable
 
 import polars as pl
 
@@ -22,9 +23,13 @@ class SCNIRVariant:
     sample_source: str | None
     source_filenames: list[str]
 
+    def to_row_fragment(self) -> Iterable[str | None | bool]:
+        return []
+
 
 @dataclass
 class SCNIRGeneMention:
+    gene: str
     variants: list[SCNIRVariant]
 
     def __post_init__(self) -> None:
@@ -36,7 +41,15 @@ class SCNIRGeneMention:
                 f"Too many or too few variant mentions {len(self.variants)}"
             )
 
+        def to_row_fragment(self) -> Iterable[str | bool | None]:
+            # Hard-coded weirdness - hopefully only for now
+            opening_cells = 18
+            closing_cells =2
+            for _ in range(opening_cells):
+                yield None
 
+            for _ in range(closing_cells):
+                yield None
 @dataclass
 class SCNIRForm:
     mrn: int
@@ -51,5 +64,4 @@ class SCNIRForm:
                 f"Too many or too few gene/germline mentions {len(self.gene_mentions)}"
             )
 
-    def to_data_frame(self) -> pl.DataFrame:
-        return pl.DataFrame()
+    def to_row(self) -> Iterable[str | bool | None]:

@@ -80,7 +80,7 @@ def get_variants(
 
 
 def get_gene_mention(gene: str, gene_cluster_df: pl.DataFrame) -> SCNIRGeneMention:
-    return SCNIRGeneMention(variants=get_variants(gene_cluster_df))
+    return SCNIRGeneMention(gene=gene, variants=get_variants(gene_cluster_df))
 
 
 def get_gene_mentions(mrn_cluster_df: pl.DataFrame) -> list[SCNIRGeneMention]:

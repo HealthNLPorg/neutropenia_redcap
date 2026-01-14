@@ -7,11 +7,12 @@ MAXIMUM_GERMLINES = 3
 MINIMUM_VARIANTS = 1
 MAXIMUM_VARIANTS = 4
 
+GERMLINE_BODY_OPENING = 
 
 def nth_germline_testing_information(n: int) -> list[str]:
     if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
         raise ValueError(
-            f"Currently only supporting up to 3 germline variants, you provided {n}"
+            f"Currently only supporting up to {MAXIMUM_GERMLINES} germline variants and no fewer than {MINIMUM_GERMLINES}, you provided {n}"
         )
         return []
     return [
