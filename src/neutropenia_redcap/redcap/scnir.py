@@ -1,6 +1,6 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from collections.abc import Iterable
 
 import polars as pl
 
@@ -44,12 +44,14 @@ class SCNIRGeneMention:
         def to_row_fragment(self) -> Iterable[str | bool | None]:
             # Hard-coded weirdness - hopefully only for now
             opening_cells = 18
-            closing_cells =2
+            closing_cells = 2
             for _ in range(opening_cells):
                 yield None
 
             for _ in range(closing_cells):
                 yield None
+
+
 @dataclass
 class SCNIRForm:
     mrn: int
@@ -65,3 +67,7 @@ class SCNIRForm:
             )
 
     def to_row(self) -> Iterable[str | bool | None]:
+        return []
+
+    def to_data_frame(self) -> pl.DataFrame:
+        return pl.DataFrame()

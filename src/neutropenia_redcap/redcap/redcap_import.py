@@ -7,7 +7,6 @@ MAXIMUM_GERMLINES = 3
 MINIMUM_VARIANTS = 1
 MAXIMUM_VARIANTS = 4
 
-GERMLINE_BODY_OPENING = 
 
 def nth_germline_testing_information(n: int) -> list[str]:
     if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
@@ -46,9 +45,9 @@ def nth_germline_testing_information(n: int) -> list[str]:
 
 
 def nth_germline_information(n: int) -> Iterable[str]:
-    if n < 1 or n > 3:
+    if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
         raise ValueError(
-            f"Currently only supporting up to 3 germline variants, you provided {n}"
+            f"Currently only supporting up to {MAXIMUM_GERMLINES} germline variants, you provided {n}"
         )
         return []
     return [
@@ -105,14 +104,14 @@ def nth_germline_parental_variant_id_information(
 
 
 def nth_germline_parental_variant_information(n: int, variant: int) -> Iterable[str]:
-    if n < 1 or n > 3:
+    if n < 1 or n > MAXIMUM_GERMLINES:
         raise ValueError(
-            f"Currently only supporting up to 3 germline variants, you provided {n}"
+            f"Currently only supporting up to {MAXIMUM_GERMLINES} germline variants, you provided {n}"
         )
         return []
-    if variant < 1 or variant > 4:
+    if variant < MINIMUM_VARIANTS or variant > MAXIMUM_VARIANTS:
         raise ValueError(
-            f"Currently only supporting up to 3 germline variants, you provided {variant}"
+            f"Currently only supporting up to {MAXIMUM_VARIANTS} germline variants, you provided {variant}"
         )
         return []
     return [
@@ -160,7 +159,7 @@ def build_scnir_columns() -> list[str]:
     scnir_columns = list(
         chain(
             TESTING_INFORMATION,
-            # Germlines 1 - 3
+            # Germline mentions 1 - 3
             chain.from_iterable(
                 nth_germline_testing_information(n)
                 for n in range(MINIMUM_GERMLINES, MAXIMUM_GERMLINES)
