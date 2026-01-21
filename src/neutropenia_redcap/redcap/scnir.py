@@ -7,7 +7,6 @@ import polars as pl
 from .redcap_import import (
     MAXIMUM_GERMLINES,
     MAXIMUM_VARIANTS,
-    MINIMUM_GERMLINES,
     MINIMUM_VARIANTS,
 )
 
@@ -63,14 +62,15 @@ class SCNIRGeneMention:
     gene: str
     variants: list[SCNIRVariant]
 
-    def __post_init__(self) -> None:
-        if (
-            len(self.variants) < MINIMUM_VARIANTS
-            or len(self.variants) > MAXIMUM_VARIANTS
-        ):
-            raise ValueError(
-                f"Too many or too few variant mentions {len(self.variants)}"
-            )
+    # This is getting handled later
+    # def __post_init__(self) -> None:
+    #     if (
+    #         len(self.variants) < MINIMUM_VARIANTS
+    #         or len(self.variants) > MAXIMUM_VARIANTS
+    #     ):
+    #         raise ValueError(
+    #             f"Too many or too few variant mentions {len(self.variants)}"
+    #         )
 
     # Corresponds to nth_germline_testing_information
     def to_row_fragment(self) -> Iterable[str | bool | None]:
@@ -99,14 +99,15 @@ class SCNIRForm:
     mrn: int
     gene_mentions: list[SCNIRGeneMention]
 
-    def __post_init__(self) -> None:
-        if (
-            len(self.gene_mentions) < MINIMUM_GERMLINES
-            or len(self.gene_mentions) > MAXIMUM_GERMLINES
-        ):
-            raise ValueError(
-                f"Too many or too few gene/germline mentions {len(self.gene_mentions)}"
-            )
+    # This is handled downstream
+    # def __post_init__(self) -> None:
+    #     if (
+    #         len(self.gene_mentions) < MINIMUM_GERMLINES
+    #         or len(self.gene_mentions) > MAXIMUM_GERMLINES
+    #     ):
+    #         raise ValueError(
+    #             f"Too many or too few gene/germline mentions {len(self.gene_mentions)}"
+    #         )
 
     def to_row(self) -> Iterable[str | bool | None]:
         # Testing information
