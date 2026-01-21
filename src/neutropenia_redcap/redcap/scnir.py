@@ -26,7 +26,27 @@ class SCNIRVariant:
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | None | bool]:
         if blank:
             yield from SCNIRVariant.blank_row_fragment()
-        return []
+        # f"Germline variant {variant} (genomic or mitochondrial/mtDNA) [{n}]:",
+        yield None  # even the clinicians don't really fill this out
+        # f"Germline variant {variant} (cDNA) [{n}]:",
+        yield self.syntax_n
+        # f"Germline variant {variant} (protein) [{n}]:",
+        yield self.syntax_p
+        # f"Was germline variant {variant_id} confirmed by parental genetic testing? [{n}]",
+        yield None  # clinician needs to assess this
+        # type of... they'll need to check this
+        for _ in range(12):
+            yield "Unchecked"
+        # Specify... Germline... Mitochondrial
+        yield None
+        yield None
+        yield None
+        # ACMG
+        yield self.variant_type
+        yield self.build_comment()
+
+    def build_comment(self) -> str:
+        return ""
 
     @staticmethod
     def blank_row_fragment() -> Iterable[None]:

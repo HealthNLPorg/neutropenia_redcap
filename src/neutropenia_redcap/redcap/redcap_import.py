@@ -104,7 +104,7 @@ def nth_germline_parental_variant_id_information(
 
 
 def nth_germline_parental_variant_information(n: int, variant: int) -> Iterable[str]:
-    if n < 1 or n > MAXIMUM_GERMLINES:
+    if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
         raise ValueError(
             f"Currently only supporting up to {MAXIMUM_GERMLINES} germline variants, you provided {n}"
         )
