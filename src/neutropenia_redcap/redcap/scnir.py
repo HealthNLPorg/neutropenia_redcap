@@ -72,26 +72,26 @@ class SCNIRGeneMention:
                 f"Too many or too few variant mentions {len(self.variants)}"
             )
 
-        # Corresponds to nth_germline_testing_information
-        def to_row_fragment(self) -> Iterable[str | bool | None]:
-            # Hard-coded weirdness - hopefully only for now
-            total_opening_cells = 18
-            total_closing_cells = 2
-            # this is where we would have to do some logic with self.sample_source
-            for _ in range(total_opening_cells):
-                yield None
-            # nth_germline_information
-            # total_open_internal_cells = 3
-            yield self.gene
-            for _ in range(2):
-                yield None
-            for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS):
-                if i < len(self.variants):
-                    yield from self.variants[i].get_row_fragment()
-                else:
-                    yield from SCNIRVariant.blank_row_fragment()
-            for _ in range(total_closing_cells):
-                yield None
+    # Corresponds to nth_germline_testing_information
+    def to_row_fragment(self) -> Iterable[str | bool | None]:
+        # Hard-coded weirdness - hopefully only for now
+        total_opening_cells = 18
+        total_closing_cells = 2
+        # this is where we would have to do some logic with self.sample_source
+        for _ in range(total_opening_cells):
+            yield None
+        # nth_germline_information
+        # total_open_internal_cells = 3
+        yield self.gene
+        for _ in range(2):
+            yield None
+        for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS):
+            if i < len(self.variants):
+                yield from self.variants[i].to_row_fragment()
+            else:
+                yield from SCNIRVariant.blank_row_fragment()
+        for _ in range(total_closing_cells):
+            yield None
 
 
 @dataclass
@@ -109,7 +109,28 @@ class SCNIRForm:
             )
 
     def to_row(self) -> Iterable[str | bool | None]:
-        return []
+        # Testing information
+        # Subject ID
+        yield self.mrn
+        # Repeat... Repeat... Date last updated
+        for _ in range(3):
+            yield None
+        # Were any potentially disease causing variants found
+        yield "Yes" if len(self.gene_mentions) > 0 else None
+        # How many GENES with germline variants...
+        yield (
+            len(self.gene_mentions)
+            if len(self.gene_mentions) <= MAXIMUM_GERMLINES
+            else f"More than {MAXIMUM_GERMLINES}"
+        )
+        # Other...
+        # this never has anything
+        yield None
+        for gene_mention in self.gene_mentions:
+            yield from gene_mention.to_row_fragment()
+        # Form level information (deal with this later)
+        yield None
+        yield None
 
     def to_data_frame(self) -> pl.DataFrame:
         return pl.DataFrame()
