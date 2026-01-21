@@ -23,6 +23,8 @@ class SCNIRVariant:
     sample_source: str | None
     source_filenames: list[str]
 
+    # Another weird thing is I can't find the field where the specimen collection date
+    # would go
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | None | bool]:
         if blank:
             yield from SCNIRVariant.blank_row_fragment()
@@ -45,6 +47,8 @@ class SCNIRVariant:
         yield self.variant_type
         yield self.build_comment()
 
+    # Heterozygosity in "Clinical and Research Sequencing Summary Form Comments"
+    # or variant level comments
     def build_comment(self) -> str:
         return ""
 
@@ -73,6 +77,7 @@ class SCNIRGeneMention:
             # Hard-coded weirdness - hopefully only for now
             total_opening_cells = 18
             total_closing_cells = 2
+            # this is where we would have to do some logic with self.sample_source
             for _ in range(total_opening_cells):
                 yield None
             # nth_germline_information
