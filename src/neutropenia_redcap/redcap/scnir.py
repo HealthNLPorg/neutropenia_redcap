@@ -7,7 +7,9 @@ import polars as pl
 from .redcap_import import (
     MAXIMUM_GERMLINES,
     MAXIMUM_VARIANTS,
+    MINIMUM_GERMLINES,
     MINIMUM_VARIANTS,
+    build_scnir_columns,
 )
 
 
@@ -73,7 +75,9 @@ class SCNIRGeneMention:
     #         )
 
     # Corresponds to nth_germline_testing_information
-    def to_row_fragment(self) -> Iterable[str | bool | None]:
+    def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
+        if blank:
+            yield from SCNIRGeneMention.blank_row_fragment()
         # Hard-coded weirdness - hopefully only for now
         total_opening_cells = 18
         total_closing_cells = 2
@@ -85,11 +89,28 @@ class SCNIRGeneMention:
         yield self.gene
         for _ in range(2):
             yield None
-        for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS):
+        for i in range(MINIMUM_VARIANTS - 1, MAXIMUM_VARIANTS):
             if i < len(self.variants):
                 yield from self.variants[i].to_row_fragment()
             else:
                 yield from SCNIRVariant.blank_row_fragment()
+        for _ in range(total_closing_cells):
+            yield None
+
+    @staticmethod
+    def blank_row_fragment() -> Iterable[None]:
+        # Hard-coded weirdness - hopefully only for now
+        total_opening_cells = 18
+        total_closing_cells = 2
+        # this is where we would have to do some logic with self.sample_source
+        for _ in range(total_opening_cells):
+            yield None
+        # nth_germline_information
+        # total_open_internal_cells = 3
+        for _ in range(3):
+            yield None
+        for i in range(MINIMUM_VARIANTS - 1, MAXIMUM_VARIANTS):
+            yield from SCNIRVariant.blank_row_fragment()
         for _ in range(total_closing_cells):
             yield None
 
@@ -127,11 +148,18 @@ class SCNIRForm:
         # Other...
         # this never has anything
         yield None
-        for gene_mention in self.gene_mentions:
-            yield from gene_mention.to_row_fragment()
+        for i in range(MINIMUM_GERMLINES - 1, MAXIMUM_GERMLINES):
+            if i < len(self.gene_mentions):
+                yield from self.gene_mentions[i].to_row_fragment()
+            else:
+                yield from SCNIRGeneMention.blank_row_fragment()
         # Form level information (deal with this later)
         yield None
         yield None
 
     def to_data_frame(self) -> pl.DataFrame:
-        return pl.DataFrame()
+        columns = list(build_scnir_columns())
+        print(len(columns))
+        data = list(self.to_row())
+        print(len(data))
+        return pl.DataFrame(data=[data], schema=columns, orient="col")

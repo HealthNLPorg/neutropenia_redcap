@@ -1,4 +1,5 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from functools import lru_cache
 from itertools import chain
 
 MINIMUM_GERMLINES = 1
@@ -9,11 +10,6 @@ MAXIMUM_VARIANTS = 4
 
 
 def nth_germline_testing_information(n: int) -> list[str]:
-    if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
-        raise ValueError(
-            f"Currently only supporting up to {MAXIMUM_GERMLINES} germline variants and no fewer than {MINIMUM_GERMLINES}, you provided {n}"
-        )
-        return []
     return [
         f"Were the germline variants found by clinical testing? [{n}]",
         f"type of clinical and/or research tests in which the germline variants were identified [{n}]: (choice=single gene sequencing)",
@@ -36,8 +32,8 @@ def nth_germline_testing_information(n: int) -> list[str]:
         # Variant stuff
         *nth_germline_information(n),
         *chain.from_iterable(
-            nth_germline_parental_variant_id_information(n, variant_id)
-            for variant_id in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS)
+            nth_germline_parental_variant_id_information(n, variant_id + 1)
+            for variant_id in range(MINIMUM_VARIANTS - 1, MAXIMUM_VARIANTS)
         ),
         f"Significance of the germline variant genetic findings [{n}]:",
         f"Has a definitive or probable causative germline variant result been confirmed by clinical testing? [{n}]",
@@ -45,11 +41,6 @@ def nth_germline_testing_information(n: int) -> list[str]:
 
 
 def nth_germline_information(n: int) -> Iterable[str]:
-    if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
-        raise ValueError(
-            f"Currently only supporting up to {MAXIMUM_GERMLINES} germline variants, you provided {n}"
-        )
-        return []
     return [
         f"Germline variant(s) gene [{n}]:",
         f"Germline variant(s) gene reference transcript [{n}]:",
@@ -60,16 +51,6 @@ def nth_germline_information(n: int) -> Iterable[str]:
 def nth_germline_parental_variant_id_information(
     n: int, variant_id: int
 ) -> Iterable[str]:
-    if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
-        raise ValueError(
-            f"Currently only supporting up to 3 germline variant_ids, you provided {n}"
-        )
-        return []
-    if variant_id < MINIMUM_VARIANTS or variant_id > MAXIMUM_VARIANTS:
-        raise ValueError(
-            f"Currently only supporting up to 3 germline variant_ids, you provided {variant_id}"
-        )
-        return []
     variant = None
     match variant_id:
         case 1:
@@ -103,42 +84,6 @@ def nth_germline_parental_variant_id_information(
     ]
 
 
-def nth_germline_parental_variant_information(n: int, variant: int) -> Iterable[str]:
-    if n < MINIMUM_GERMLINES or n > MAXIMUM_GERMLINES:
-        raise ValueError(
-            f"Currently only supporting up to {MAXIMUM_GERMLINES} germline variants, you provided {n}"
-        )
-        return []
-    if variant < MINIMUM_VARIANTS or variant > MAXIMUM_VARIANTS:
-        raise ValueError(
-            f"Currently only supporting up to {MAXIMUM_VARIANTS} germline variants, you provided {variant}"
-        )
-        return []
-    return [
-        f"Germline variant {variant}/maternal allele variant (genomic or mitochondrial/mtDNA) [{n}]:",
-        f"Germline variant {variant}/maternal allele variant (cDNA) [{n}]:",
-        f"Germline variant {variant}/maternal allele variant (protein) [{n}]:",
-        f"Was germline variant {variant} confirmed by parental genetic testing? [{n}]",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Synonymous (silent))",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Missense (MS))",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Stop gained)",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Small INDEL - frameshift (FS))",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Small INDEL - in-frame)",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Large INDEL)",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Splicing (SPL))",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Chromosomal aneuploidy)",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Mitochondrial)",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Insertion)",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Deletion)",
-        f"Type of germline variant {variant}/maternal allele variant [{n}]: (choice=Other)",
-        f"Specify other type of germline variant {variant}/maternal allele variant [{n}]:",
-        f"Germline variant {variant}/maternal allele variant PolyPhen2 score [{n}]:",
-        f"Mitochondrial variant {variant} heteroplasmy (%) [{n}]:",
-        f"Germline variant {variant}/maternal allele variant ACMG classification [{n}]:",
-        f"Germline variant {variant}/maternal allele variant comment [{n}]:",
-    ]
-
-
 TESTING_INFORMATION = [
     "Subject ID:",
     "Repeat Instrument",
@@ -155,16 +100,16 @@ FORM_LEVEL_INFORMATION = [
 ]
 
 
-def build_scnir_columns() -> list[str]:
-    scnir_columns = list(
+@lru_cache
+def build_scnir_columns() -> Sequence[str]:
+    return list(
         chain(
             TESTING_INFORMATION,
             # Germline mentions 1 - 3
             chain.from_iterable(
-                nth_germline_testing_information(n)
-                for n in range(MINIMUM_GERMLINES, MAXIMUM_GERMLINES)
+                nth_germline_testing_information(n + 1)
+                for n in range(MINIMUM_GERMLINES - 1, MAXIMUM_GERMLINES)
             ),
             FORM_LEVEL_INFORMATION,
         )
     )
-    return scnir_columns
