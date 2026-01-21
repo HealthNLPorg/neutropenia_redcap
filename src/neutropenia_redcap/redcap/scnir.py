@@ -23,8 +23,15 @@ class SCNIRVariant:
     sample_source: str | None
     source_filenames: list[str]
 
-    def to_row_fragment(self) -> Iterable[str | None | bool]:
+    def to_row_fragment(self, blank: bool = False) -> Iterable[str | None | bool]:
+        if blank:
+            yield from SCNIRVariant.blank_row_fragment()
         return []
+
+    @staticmethod
+    def blank_row_fragment() -> Iterable[None]:
+        for _ in range(21):
+            yield None
 
 
 @dataclass
@@ -41,14 +48,24 @@ class SCNIRGeneMention:
                 f"Too many or too few variant mentions {len(self.variants)}"
             )
 
+        # Corresponds to nth_germline_testing_information
         def to_row_fragment(self) -> Iterable[str | bool | None]:
             # Hard-coded weirdness - hopefully only for now
-            opening_cells = 18
-            closing_cells = 2
-            for _ in range(opening_cells):
+            total_opening_cells = 18
+            total_closing_cells = 2
+            for _ in range(total_opening_cells):
                 yield None
-
-            for _ in range(closing_cells):
+            # nth_germline_information
+            # total_open_internal_cells = 3
+            yield self.gene
+            for _ in range(2):
+                yield None
+            for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS):
+                if i < len(self.variants):
+                    yield from self.variants[i].get_row_fragment()
+                else:
+                    yield from SCNIRVariant.blank_row_fragment()
+            for _ in range(total_closing_cells):
                 yield None
 
 
