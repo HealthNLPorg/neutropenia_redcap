@@ -12,6 +12,8 @@ from .redcap_import import (
     build_scnir_columns,
 )
 
+SCHEMA = [(column, pl.String) for column in build_scnir_columns()]
+
 
 @dataclass
 class SCNIRVariant:
@@ -158,8 +160,5 @@ class SCNIRForm:
         yield None
 
     def to_data_frame(self) -> pl.DataFrame:
-        columns = list(build_scnir_columns())
-        print(len(columns))
-        data = list(self.to_row())
-        print(len(data))
-        return pl.DataFrame(data=[data], schema=columns, orient="col")
+        data = [list(self.to_row())]
+        return pl.DataFrame(data=data, schema=SCHEMA, orient="row")
