@@ -12,7 +12,22 @@ from .redcap_import import (
     build_scnir_columns,
 )
 
-SCHEMA = [(column, pl.String) for column in build_scnir_columns()]
+ALL_LOWERCASE = [range(8, 24), range(115, 131), range(222, 238)]
+
+
+def line_index_is_lower_case(index: int) -> bool:
+    return any(index in lower_case_range for lower_case_range in ALL_LOWERCASE)
+
+
+def get_column_name(index: int, column_name: str) -> str:
+    filtered = "".join(filter(str.isalnum, column_name))
+    return filtered.lower() if line_index_is_lower_case(index) else filtered
+
+
+SCHEMA = [
+    (get_column_name(index, column), pl.String)
+    for index, column in enumerate(build_scnir_columns())
+]
 
 
 @dataclass

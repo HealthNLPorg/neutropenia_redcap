@@ -102,6 +102,9 @@ def raw_output_to_redcap(data_location: str, output_dir: str) -> None:
             MRN=raw_output_frame["Filename"].map_elements(get_mrn)
         ).group_by("MRN")
     )
+    final_frame = final_frame.with_columns(
+        pl.col("SubjectID").alias("patient_id")
+    ).select("patient_id", *final_frame.columns)
     final_frame.write_csv(os.path.join(output_dir, "redcap_upoad.csv"))
 
 
