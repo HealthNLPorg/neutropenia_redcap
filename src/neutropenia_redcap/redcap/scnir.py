@@ -9,25 +9,8 @@ from .redcap_import import (
     MAXIMUM_VARIANTS,
     MINIMUM_GERMLINES,
     MINIMUM_VARIANTS,
-    build_scnir_columns,
+    SCNIR_COLUMNS,
 )
-
-ALL_LOWERCASE = [range(8, 24), range(115, 131), range(222, 238)]
-
-
-def line_index_is_lower_case(index: int) -> bool:
-    return any(index in lower_case_range for lower_case_range in ALL_LOWERCASE)
-
-
-def get_column_name(index: int, column_name: str) -> str:
-    filtered = "".join(filter(str.isalnum, column_name))
-    return filtered.lower() if line_index_is_lower_case(index) else filtered
-
-
-SCHEMA = [
-    (get_column_name(index, column), pl.String)
-    for index, column in enumerate(build_scnir_columns())
-]
 
 
 @dataclass
@@ -46,23 +29,13 @@ class SCNIRVariant:
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | None | bool]:
         if blank:
             yield from SCNIRVariant.blank_row_fragment()
-        # f"Germline variant {variant} (genomic or mitochondrial/mtDNA) [{n}]:",
-        yield None  # even the clinicians don't really fill this out
-        # f"Germline variant {variant} (cDNA) [{n}]:",
+        # sum_germ_var{variant_index}_cdna_{germline_index}
         yield self.syntax_n
-        # f"Germline variant {variant} (protein) [{n}]:",
+        # sum_germ_var{variant_index}_pro_{germline_index}
         yield self.syntax_p
-        # f"Was germline variant {variant_id} confirmed by parental genetic testing? [{n}]",
-        yield None  # clinician needs to assess this
-        # type of... they'll need to check this
-        for _ in range(12):
-            yield "Unchecked"
-        # Specify... Germline... Mitochondrial
-        yield None
-        yield None
-        yield None
-        # ACMG
+        # sum_germ_var{variant_index}_acmg_{germline_index}
         yield self.variant_type
+        # sum_germ_var{variant_index}_comment_{germline_index}
         yield self.build_comment()
 
     # Heterozygosity in "Clinical and Research Sequencing Summary Form Comments"
@@ -72,7 +45,7 @@ class SCNIRVariant:
 
     @staticmethod
     def blank_row_fragment() -> Iterable[None]:
-        for _ in range(21):
+        for _ in range(4):
             yield None
 
 
@@ -81,55 +54,25 @@ class SCNIRGeneMention:
     gene: str
     variants: list[SCNIRVariant]
 
-    # This is getting handled later
-    # def __post_init__(self) -> None:
-    #     if (
-    #         len(self.variants) < MINIMUM_VARIANTS
-    #         or len(self.variants) > MAXIMUM_VARIANTS
-    #     ):
-    #         raise ValueError(
-    #             f"Too many or too few variant mentions {len(self.variants)}"
-    #         )
-
-    # Corresponds to nth_germline_testing_information
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
             yield from SCNIRGeneMention.blank_row_fragment()
-        # Hard-coded weirdness - hopefully only for now
-        total_opening_cells = 18
-        total_closing_cells = 2
-        # this is where we would have to do some logic with self.sample_source
-        for _ in range(total_opening_cells):
-            yield None
-        # nth_germline_information
-        # total_open_internal_cells = 3
+        # sum_germ_gene_{germline_index}
         yield self.gene
-        for _ in range(2):
-            yield None
-        for i in range(MINIMUM_VARIANTS - 1, MAXIMUM_VARIANTS):
-            if i < len(self.variants):
-                yield from self.variants[i].to_row_fragment()
+        # sum_germ_num_var_{germline_index}
+        yield min(len(self.variants), MAXIMUM_VARIANTS)
+        for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS + 1):
+            if i <= len(self.variants):
+                yield from self.variants[i - 1].to_row_fragment()
             else:
                 yield from SCNIRVariant.blank_row_fragment()
-        for _ in range(total_closing_cells):
-            yield None
 
     @staticmethod
     def blank_row_fragment() -> Iterable[None]:
-        # Hard-coded weirdness - hopefully only for now
-        total_opening_cells = 18
-        total_closing_cells = 2
-        # this is where we would have to do some logic with self.sample_source
-        for _ in range(total_opening_cells):
-            yield None
-        # nth_germline_information
-        # total_open_internal_cells = 3
-        for _ in range(3):
-            yield None
-        for i in range(MINIMUM_VARIANTS - 1, MAXIMUM_VARIANTS):
+        yield None
+        yield None
+        for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS + 1):
             yield from SCNIRVariant.blank_row_fragment()
-        for _ in range(total_closing_cells):
-            yield None
 
 
 @dataclass
@@ -137,43 +80,19 @@ class SCNIRForm:
     mrn: int
     gene_mentions: list[SCNIRGeneMention]
 
-    # This is handled downstream
-    # def __post_init__(self) -> None:
-    #     if (
-    #         len(self.gene_mentions) < MINIMUM_GERMLINES
-    #         or len(self.gene_mentions) > MAXIMUM_GERMLINES
-    #     ):
-    #         raise ValueError(
-    #             f"Too many or too few gene/germline mentions {len(self.gene_mentions)}"
-    #         )
-
     def to_row(self) -> Iterable[str | bool | None]:
-        # Testing information
-        # Subject ID
+        # patient_id
         yield self.mrn
-        # Repeat... Repeat... Date last updated
-        for _ in range(3):
-            yield None
-        # Were any potentially disease causing variants found
-        yield "Yes" if len(self.gene_mentions) > 0 else None
-        # How many GENES with germline variants...
-        yield (
-            len(self.gene_mentions)
-            if len(self.gene_mentions) <= MAXIMUM_GERMLINES
-            else f"More than {MAXIMUM_GERMLINES}"
-        )
-        # Other...
-        # this never has anything
-        yield None
-        for i in range(MINIMUM_GERMLINES - 1, MAXIMUM_GERMLINES):
-            if i < len(self.gene_mentions):
-                yield from self.gene_mentions[i].to_row_fragment()
+        # sum_germ, 1 == "Yes"
+        yield 1
+        # sum_germ_num_gen
+        yield min(self.gene_mentions, MAXIMUM_GERMLINES)
+        for i in range(MINIMUM_GERMLINES, MAXIMUM_GERMLINES + 1):
+            if i <= len(self.gene_mentions):
+                yield from self.gene_mentions[i - 1].to_row_fragment()
             else:
                 yield from SCNIRGeneMention.blank_row_fragment()
-        # Form level information (deal with this later)
-        yield None
-        yield None
 
     def to_data_frame(self) -> pl.DataFrame:
         data = [list(self.to_row())]
-        return pl.DataFrame(data=data, schema=SCHEMA, orient="row")
+        return pl.DataFrame(data=data, schema=SCNIR_COLUMNS, orient="row")
