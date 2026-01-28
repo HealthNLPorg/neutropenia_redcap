@@ -12,6 +12,8 @@ from .redcap_import import (
     SCNIR_COLUMNS,
 )
 
+SCNIR_SCHEMA = [(column_name, pl.String) for column_name in SCNIR_COLUMNS]
+
 
 @dataclass
 class SCNIRVariant:
@@ -86,7 +88,7 @@ class SCNIRForm:
         # sum_germ, 1 == "Yes"
         yield 1
         # sum_germ_num_gen
-        yield min(self.gene_mentions, MAXIMUM_GERMLINES)
+        yield min(len(self.gene_mentions), MAXIMUM_GERMLINES)
         for i in range(MINIMUM_GERMLINES, MAXIMUM_GERMLINES + 1):
             if i <= len(self.gene_mentions):
                 yield from self.gene_mentions[i - 1].to_row_fragment()
@@ -95,4 +97,4 @@ class SCNIRForm:
 
     def to_data_frame(self) -> pl.DataFrame:
         data = [list(self.to_row())]
-        return pl.DataFrame(data=data, schema=SCNIR_COLUMNS, orient="row")
+        return pl.DataFrame(data=data, schema=SCNIR_SCHEMA, orient="row")
