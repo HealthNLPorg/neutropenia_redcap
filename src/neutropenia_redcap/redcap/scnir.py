@@ -1,6 +1,8 @@
+import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
+from functools import lru_cache
 
 import polars as pl
 
@@ -12,7 +14,53 @@ from .redcap_import import (
     SCNIR_COLUMNS,
 )
 
+logger = logging.getLogger(__name__)
+
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    level=logging.INFO,
+)
+
 SCNIR_SCHEMA = [(column_name, pl.String) for column_name in SCNIR_COLUMNS]
+
+
+@lru_cache
+def map_variant_type(variant_type: str | None) -> int | None:
+    if variant_type is None:
+        return None
+    normalized_variant_type = " ".join(variant_type.lower().split())
+    is_likely = "likely" in normalized_variant_type
+    is_benign = "benign" in normalized_variant_type
+    is_pathogenic = "patho" in normalized_variant_type
+    is_uncertain = (
+        "uncertain" in normalized_variant_type
+        or "vus" in normalized_variant_type
+        or "unknown significance" in normalized_variant_type
+    )
+    match is_likely, is_benign, is_pathogenic, is_uncertain:
+        # Something weird
+        # case False, False, False, False:
+        #     # Don't know - leave to comment or further tweaking
+        #     logger.warning("Not sure how to map: %s", variant_type)
+        #     return None
+        # Straightforward pathogenic
+        case False, False, True, False:
+            return 1
+        # Likely pathogenic
+        case True, False, True, False:
+            return 2
+        # Straightforward benign
+        case False, True, False, False:
+            return 3
+        # Likely benign
+        case True, True, False, False:
+            return 4
+        # Straightforward uncertain
+        case False, False, False, True:
+            return 5
+    logger.warning("Cannot currently map: %s", variant_type)
+    return None
 
 
 @dataclass
@@ -36,7 +84,7 @@ class SCNIRVariant:
         # sum_germ_var{variant_index}_pro_{germline_index}
         yield self.syntax_p
         # sum_germ_var{variant_index}_acmg_{germline_index}
-        yield self.variant_type
+        yield map_variant_type(self.variant_type)
         # sum_germ_var{variant_index}_comment_{germline_index}
         yield self.build_comment()
 
