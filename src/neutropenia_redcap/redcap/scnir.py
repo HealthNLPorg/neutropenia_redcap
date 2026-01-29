@@ -1,20 +1,26 @@
 import logging
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
+from itertools import chain, islice, repeat
+from typing import cast
 
 import polars as pl
 
 from .redcap_import import (
     MAXIMUM_GERMLINES,
     MAXIMUM_VARIANTS,
-    MINIMUM_GERMLINES,
     MINIMUM_VARIANTS,
     SCNIR_COLUMNS,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def pad_iterable[T, S](iterable: Iterable[T], n: int, pad: S) -> Iterable[T | S]:
+    return islice(chain(iterable, cast(Iterable[S], repeat(pad))), n)
+
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -64,15 +70,24 @@ def map_variant_type(variant_type: str | None) -> int | None:
 
 
 @dataclass
+class TextSource:
+    filename: str
+    section: str
+    sentence: str
+
+
+@dataclass
 class SCNIRVariant:
     syntax_p: str | None
     syntax_n: str | None
     variant_type: str | None
     vaf: str | None
-    known_heterozygous: bool
-    specimen_collection_date: date | None
-    sample_source: str | None
-    source_filenames: list[str]
+    heterozygous: (
+        bool | None
+    )  # True for is heterozygous, False for definitely isn't, None for unknown
+    specimen_collection_dates: Collection[date] = set()
+    sample_sources: Collection[str] = set()
+    text_sources: Collection[TextSource] = set()
 
     # Another weird thing is I can't find the field where the specimen collection date
     # would go
@@ -102,7 +117,7 @@ class SCNIRVariant:
 @dataclass
 class SCNIRGeneMention:
     gene: str
-    variants: list[SCNIRVariant]
+    variants: Collection[SCNIRVariant] = set()
 
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
@@ -111,11 +126,12 @@ class SCNIRGeneMention:
         yield self.gene
         # sum_germ_num_var_{germline_index}
         yield min(len(self.variants), MAXIMUM_VARIANTS)
-        for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS + 1):
-            if i <= len(self.variants):
-                yield from self.variants[i - 1].to_row_fragment()
-            else:
-                yield from SCNIRVariant.blank_row_fragment()
+        for variant in pad_iterable(self.variants, n=MAXIMUM_VARIANTS, pad=None):
+            yield from (
+                variant.to_row_fragment()
+                if variant is not None
+                else SCNIRVariant.blank_row_fragment()
+            )
 
     @staticmethod
     def blank_row_fragment() -> Iterable[None]:
@@ -137,11 +153,12 @@ class SCNIRForm:
         yield 1
         # sum_germ_num_gen
         yield min(len(self.gene_mentions), MAXIMUM_GERMLINES)
-        for i in range(MINIMUM_GERMLINES, MAXIMUM_GERMLINES + 1):
-            if i <= len(self.gene_mentions):
-                yield from self.gene_mentions[i - 1].to_row_fragment()
-            else:
-                yield from SCNIRGeneMention.blank_row_fragment()
+        for germline in pad_iterable(self.gene_mentions, n=MAXIMUM_GERMLINES, pad=None):
+            yield from (
+                germline.to_row_fragment()
+                if germline is not None
+                else SCNIRGeneMention.blank_row_fragment()
+            )
 
     def to_data_frame(self) -> pl.DataFrame:
         data = [list(self.to_row())]

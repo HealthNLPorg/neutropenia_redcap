@@ -35,43 +35,34 @@ logging.basicConfig(
 def get_variant(
     clustered_attributes: tuple[str, ...], clustered_attribute_df: pl.DataFrame
 ) -> SCNIRVariant:
-    syntax_n, syntax_p, variant_type, vaf, section = clustered_attributes
-    known_heterozygous = (
-        vaf.strip().lower() == "heterozygous" if vaf is not None else False
+    syntax_n, syntax_p, variant_type, vaf = clustered_attributes
+    heterozygous = (
+        True if vaf is not None and vaf.strip().lower() == "heterozygous" else None
     )
     return SCNIRVariant(
         syntax_p=syntax_p,
         syntax_n=syntax_n,
         variant_type=variant_type,
         vaf=vaf,
-        known_heterozygous=known_heterozygous,
-        specimen_collection_date=next(
-            (
-                specimen_collection_date
-                for specimen_collection_date in clustered_attribute_df[
-                    "Specimen_Collection_Date"
-                ]
-                if specimen_collection_date is not None
-            ),
-            None,
-        ),
-        sample_source=next(
-            (
-                sample_source
-                for sample_source in clustered_attribute_df["Sample_Source"]
-                if sample_source is not None
-            ),
-            None,
-        ),
-        source_filenames=[
-            fn for fn in clustered_attribute_df["Filename"] if fn is not None
-        ],
+        heterozygous=heterozygous,
+        specimen_collection_dates={
+            specimen_collection_date
+            for specimen_collection_date in clustered_attribute_df[
+                "Specimen_Collection_Date"
+            ]
+            if specimen_collection_date is not None
+        },
+        sample_sources={
+            sample_source
+            for sample_source in clustered_attribute_df["Sample_Source"]
+            if sample_source is not None
+        },
     )
 
 
 def get_variants(
     gene_cluster_df: pl.DataFrame,
-    attributes: tuple[str, ...] = ("Syntax_N", "Syntax_P", "Type", "Vaf", "Section"),
+    attributes: tuple[str, ...] = ("Syntax_N", "Syntax_P", "Type", "Vaf"),
 ) -> list[SCNIRVariant]:
     return [
         get_variant(clustered_attributes, clustered_attribute_df)
