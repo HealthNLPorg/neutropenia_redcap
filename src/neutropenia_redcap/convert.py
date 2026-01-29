@@ -36,7 +36,9 @@ def get_variant(
     clustered_attributes: tuple[str, ...], clustered_attribute_df: pl.DataFrame
 ) -> SCNIRVariant:
     syntax_n, syntax_p, variant_type, vaf, section = clustered_attributes
-    known_heterozygous = vaf.strip().lower() == "heterozygous"
+    known_heterozygous = (
+        vaf.strip().lower() == "heterozygous" if vaf is not None else False
+    )
     return SCNIRVariant(
         syntax_p=syntax_p,
         syntax_n=syntax_n,
@@ -95,16 +97,15 @@ def mrn_cluster_to_form(mrn: int, mrn_cluster_df: pl.DataFrame) -> SCNIRForm:
 
 
 def raw_output_to_redcap(data_location: str, output_dir: str) -> None:
-    raw_output_frame = pl.read_csv(data_location, separator="\t")
+    raw_output_frame = pl.read_csv(data_location, separator="\t").with_columns(
+        pl.col(pl.String).replace("__UNK__", None)
+    )
     final_frame = pl.concat(
         mrn_cluster_to_form(mrn, mrn_cluster_df).to_data_frame()
         for (mrn,), mrn_cluster_df in raw_output_frame.with_columns(
             MRN=raw_output_frame["Filename"].map_elements(get_mrn)
         ).group_by("MRN")
     )
-    final_frame = final_frame.with_columns(
-        pl.col("SubjectID").alias("patient_id")
-    ).select("patient_id", *final_frame.columns)
     final_frame.write_csv(os.path.join(output_dir, "redcap_upoad.csv"))
 
 
