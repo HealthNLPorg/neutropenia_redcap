@@ -51,7 +51,7 @@ def get_variant(
                 for specimen_collection_date in clustered_attribute_df[
                     "Specimen_Collection_Date"
                 ]
-                if specimen_collection_date != "__UNK__"
+                if specimen_collection_date is not None
             ),
             None,
         ),
@@ -59,12 +59,12 @@ def get_variant(
             (
                 sample_source
                 for sample_source in clustered_attribute_df["Sample_Source"]
-                if sample_source != "__UNK__"
+                if sample_source is not None
             ),
             None,
         ),
         source_filenames=[
-            fn for fn in clustered_attribute_df["Filename"] if fn != "__UNK__"
+            fn for fn in clustered_attribute_df["Filename"] if fn is not None
         ],
     )
 
