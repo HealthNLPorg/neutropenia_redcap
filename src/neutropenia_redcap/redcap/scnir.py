@@ -45,24 +45,19 @@ def map_variant_type(variant_type: str | None) -> int | None:
         or "unknown significance" in normalized_variant_type
     )
     match is_likely, is_benign, is_pathogenic, is_uncertain:
-        # Something weird
-        # case False, False, False, False:
-        #     # Don't know - leave to comment or further tweaking
-        #     logger.warning("Not sure how to map: %s", variant_type)
-        #     return None
-        # Straightforward pathogenic
+        # Unmodified pathogenic
         case False, False, True, False:
             return 1
         # Likely pathogenic
         case True, False, True, False:
             return 2
-        # Straightforward benign
+        # Unmodified benign
         case False, True, False, False:
             return 3
         # Likely benign
         case True, True, False, False:
             return 4
-        # Straightforward uncertain
+        # Unmodified uncertain
         case False, False, False, True:
             return 5
     logger.warning("Cannot currently map: %s", variant_type)
@@ -78,6 +73,7 @@ class TextSource:
 
 @dataclass
 class SCNIRVariant:
+    gene: str
     syntax_p: str | None
     syntax_n: str | None
     variant_type: str | None
@@ -91,7 +87,7 @@ class SCNIRVariant:
 
     # Another weird thing is I can't find the field where the specimen collection date
     # would go
-    def to_row_fragment(self, blank: bool = False) -> Iterable[str | None | bool]:
+    def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
             yield from SCNIRVariant.blank_row_fragment()
         # sum_germ_var{variant_index}_cdna_{germline_index}
@@ -144,7 +140,7 @@ class SCNIRGeneMention:
 @dataclass
 class SCNIRForm:
     mrn: int
-    gene_mentions: list[SCNIRGeneMention]
+    gene_mentions: Collection[SCNIRGeneMention]
 
     def to_row(self) -> Iterable[str | bool | None]:
         # patient_id

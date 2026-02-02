@@ -18,8 +18,6 @@ def germline_and_variant_index_to_columns(
         f"sum_germ_var{variant_index}_acmg_{germline_index}",
         f"sum_germ_var{variant_index}_comment_{germline_index}",
     ]
-    # f"sum_germ_var{variant_index}_sentence_{germline_index}",
-    # f"sum_germ_var{variant_index}_section_{germline_index}",]
 
 
 def germline_index_to_columns(germline_index: int) -> Sequence[str]:

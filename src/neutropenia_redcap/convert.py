@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+from collections.abc import Collection
 
 import polars as pl
 
@@ -33,13 +34,16 @@ logging.basicConfig(
 
 
 def get_variant(
-    clustered_attributes: tuple[str, ...], clustered_attribute_df: pl.DataFrame
+    gene: str,
+    clustered_attributes: tuple[str, ...],
+    clustered_attribute_df: pl.DataFrame,
 ) -> SCNIRVariant:
     syntax_n, syntax_p, variant_type, vaf = clustered_attributes
     heterozygous = (
         True if vaf is not None and vaf.strip().lower() == "heterozygous" else None
     )
     return SCNIRVariant(
+        gene=gene,
         syntax_p=syntax_p,
         syntax_n=syntax_n,
         variant_type=variant_type,
@@ -61,26 +65,33 @@ def get_variant(
 
 
 def get_variants(
+    gene: str,
     gene_cluster_df: pl.DataFrame,
     attributes: tuple[str, ...] = ("Syntax_N", "Syntax_P", "Type", "Vaf"),
-) -> list[SCNIRVariant]:
-    return [
-        get_variant(clustered_attributes, clustered_attribute_df)
+) -> Collection[SCNIRVariant]:
+    return {
+        get_variant(
+            gene=gene,
+            clustered_attributes=clustered_attributes,
+            clustered_attribute_df=clustered_attribute_df,
+        )
         for clustered_attributes, clustered_attribute_df in gene_cluster_df.group_by(
             *attributes
         )
-    ]
+    }
 
 
 def get_gene_mention(gene: str, gene_cluster_df: pl.DataFrame) -> SCNIRGeneMention:
-    return SCNIRGeneMention(gene=gene, variants=get_variants(gene_cluster_df))
+    return SCNIRGeneMention(
+        gene=gene, variants=get_variants(gene=gene, gene_cluster_df=gene_cluster_df)
+    )
 
 
-def get_gene_mentions(mrn_cluster_df: pl.DataFrame) -> list[SCNIRGeneMention]:
-    return [
-        get_gene_mention(gene, gene_cluster_df)
+def get_gene_mentions(mrn_cluster_df: pl.DataFrame) -> Collection[SCNIRGeneMention]:
+    return {
+        get_gene_mention(gene=gene, gene_cluster_df=gene_cluster_df)
         for (gene,), gene_cluster_df in mrn_cluster_df.group_by("Gene")
-    ]
+    }
 
 
 def mrn_cluster_to_form(mrn: int, mrn_cluster_df: pl.DataFrame) -> SCNIRForm:
