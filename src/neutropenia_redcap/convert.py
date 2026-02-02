@@ -1,13 +1,15 @@
 import argparse
+import datetime
 import logging
 import os
 from collections.abc import Collection
+from functools import cache
 
 import polars as pl
 
 from .filename_utils import get_mrn
 from .formats import Formats, valid_format_choices
-from .redcap.scnir import SCNIRForm, SCNIRGeneMention, SCNIRVariant
+from .redcap.scnir import SCNIRForm, SCNIRGeneMention, SCNIRVariant, TextSource
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("--data_location", type=str)
@@ -33,6 +35,33 @@ logging.basicConfig(
 )
 
 
+@cache
+def parse_date_from_filename(filename: str) -> datetime.date:
+    raw_date = filename.split("-")[-2]
+    month, day, year = (int(attr) for attr in raw_date.split("_"))
+    return datetime.date(year=year, month=month, day=day)
+
+
+def attributes_to_text_source(sentence: str, section: str, filename: str) -> TextSource:
+    return TextSource(
+        filename=filename,
+        section=section,
+        sentence=sentence,
+        file_date=parse_date_from_filename(filename),
+    )
+
+
+def parse_text_sources(clustered_attribute_df: pl.DataFrame) -> Collection[TextSource]:
+    return {
+        attributes_to_text_source(sentence=sentence, section=section, filename=filename)
+        for sentence, section, filename in zip(
+            clustered_attribute_df["Sentence"],
+            clustered_attribute_df["Section"],
+            clustered_attribute_df["Filename"],
+        )
+    }
+
+
 def get_variant(
     gene: str,
     clustered_attributes: tuple[str, ...],
@@ -49,6 +78,7 @@ def get_variant(
         variant_type=variant_type,
         vaf=vaf,
         heterozygous=heterozygous,
+        text_sources=parse_text_sources(clustered_attribute_df=clustered_attribute_df),
         specimen_collection_dates={
             specimen_collection_date
             for specimen_collection_date in clustered_attribute_df[

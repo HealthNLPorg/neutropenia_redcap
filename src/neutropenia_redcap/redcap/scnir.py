@@ -104,9 +104,9 @@ class SCNIRVariant:
     heterozygous: (
         bool | None
     )  # True for is heterozygous, False for definitely isn't, None for unknown
-    specimen_collection_dates: Collection[date] = set()
-    sample_sources: Collection[str] = set()
-    text_sources: Collection[TextSource] = set()
+    text_sources: Collection[TextSource]
+    specimen_collection_dates: Collection[date]
+    sample_sources: Collection[str]
 
     # Another weird thing is I can't find the field where the specimen collection date
     # would go
