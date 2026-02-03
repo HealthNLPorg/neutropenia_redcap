@@ -37,10 +37,16 @@ logging.basicConfig(
 
 
 @cache
-def parse_date_from_filename(filename: str) -> datetime.date:
-    raw_date = filename.split("-")[-2]
-    month, day, year = (int(attr) for attr in raw_date.split("_"))
-    return datetime.date(year=year, month=month, day=day)
+def parse_date_from_filename(filename: str) -> datetime.date | None:
+    raw_date = (
+        filename.split("-")[-2] if filename.endswith("lab") else filename.split("-")[-1]
+    )
+    try:
+        month, day, year = (int(attr) for attr in raw_date.split("_"))
+        return datetime.date(year=year, month=month, day=day)
+    except Exception:
+        logger.error("Bad filename, no date information: %s", filename)
+        return None
 
 
 def attributes_to_text_source(sentence: str, section: str, filename: str) -> TextSource:

@@ -1,14 +1,15 @@
 import datetime
 import logging
 from collections.abc import Collection, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
-from functools import lru_cache
+from functools import cache
 from itertools import chain, islice, repeat
 from operator import attrgetter, is_not_none
 from typing import cast
 
 import polars as pl
+from more_itertools import partition
 
 from .redcap_import import (
     MAXIMUM_GERMLINES,
@@ -33,7 +34,7 @@ logging.basicConfig(
 SCNIR_SCHEMA = [(column_name, pl.String) for column_name in SCNIR_COLUMNS]
 
 
-@lru_cache
+@cache
 def map_variant_type(variant_type: str | None) -> int | None:
     if variant_type is None:
         return None
@@ -66,15 +67,15 @@ def map_variant_type(variant_type: str | None) -> int | None:
     return None
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class TextSource:
     filename: str
     section: str
     sentence: str
-    file_date: datetime.date
+    file_date: datetime.date | None
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class SCNIRVariant:
     gene: str
     syntax_p: str | None
@@ -84,9 +85,9 @@ class SCNIRVariant:
     heterozygous: (
         bool | None
     )  # True for is heterozygous, False for definitely isn't, None for unknown
-    text_sources: Collection[TextSource]
-    specimen_collection_dates: Collection[date]
-    sample_sources: Collection[str]
+    text_sources: Collection[TextSource] = field(compare=False)
+    specimen_collection_dates: Collection[date] = field(compare=False)
+    sample_sources: Collection[str] = field(compare=False)
 
     # Another weird thing is I can't find the field where the specimen collection date
     # would go
@@ -177,12 +178,23 @@ class SCNIRVariant:
 
     @staticmethod
     def build_multi_source_guide(text_sources: Collection[TextSource]) -> str:
-        sorted_sources = sorted(text_sources, key=attrgetter("date"))
+        no_date_info, has_date_info = partition(
+            lambda source: source.file_date is not None, text_sources
+        )
+        sorted_sources = sorted(has_date_info, key=attrgetter("file_date"))
         others = (
-            f"nFrom file {text_source.filename} - section '{text_source.section}'"
+            f"From file {text_source.filename} - section '{text_source.section}'"
             for text_source in sorted_sources[1:]
         )
-        return f"Multiple sources found, showing earliest:\n{SCNIRVariant.build_single_source_guide(sorted_sources[0])}\n\nOthers:\n{'\n'.join(others)}\n"
+        proper = f"Multiple sources found, showing earliest:\n{SCNIRVariant.build_single_source_guide(sorted_sources[0])}\n\nOthers least to most recent:\n{'\n'.join(others)}\n"
+        no_date_info = list(no_date_info)
+        if len(no_date_info) > 0:
+            no_date_info_mentions = "\n".join(
+                f"From file {text_source.filename} - section '{text_source.section}'"
+                for text_source in no_date_info
+            )
+            return f"{proper}Others with no date information:\n{no_date_info_mentions}"
+        return proper
 
     @staticmethod
     def blank_row_fragment() -> Iterable[None]:
@@ -190,10 +202,10 @@ class SCNIRVariant:
             yield None
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class SCNIRGeneMention:
     gene: str
-    variants: Collection[SCNIRVariant] = set()
+    variants: Collection[SCNIRVariant] = field(compare=False)
 
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
