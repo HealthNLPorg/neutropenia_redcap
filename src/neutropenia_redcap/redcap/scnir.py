@@ -1,12 +1,12 @@
 import datetime
-import functools
 import logging
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
 from itertools import chain, islice, repeat
-from typing import Any, cast
+from operator import attrgetter, is_not_none
+from typing import cast
 
 import polars as pl
 
@@ -67,31 +67,31 @@ def map_variant_type(variant_type: str | None) -> int | None:
 
 
 @dataclass
-@functools.total_ordering
+# @functools.total_ordering
 class TextSource:
     filename: str
     section: str
     sentence: str
     file_date: datetime.date
 
-    @staticmethod
-    def is_valid_operand(operand: Any) -> bool:
-        return hasattr(operand, "date") and isinstance(operand.date, datetime.date)
+    # @staticmethod
+    # def is_valid_operand(operand: Any) -> bool:
+    #     return hasattr(operand, "date") and isinstance(operand.date, datetime.date)
 
-    def __lt__(self, other: Any) -> bool:
-        if not TextSource.is_valid_operand(other):
-            return NotImplemented
-        return self.file_date < other.date
+    # def __lt__(self, other: Any) -> bool:
+    #     if not TextSource.is_valid_operand(other):
+    #         return NotImplemented
+    #     return self.file_date < other.date
 
-    def __gt__(self, other: Any) -> bool:
-        if not TextSource.is_valid_operand(other):
-            return NotImplemented
-        return self.file_date > other.date
+    # def __gt__(self, other: Any) -> bool:
+    #     if not TextSource.is_valid_operand(other):
+    #         return NotImplemented
+    #     return self.file_date > other.date
 
-    def __eq__(self, other: Any) -> bool:
-        if not TextSource.is_valid_operand(other):
-            return NotImplemented
-        return self.file_date == other.date
+    # def __eq__(self, other: Any) -> bool:
+    #     if not TextSource.is_valid_operand(other):
+    #         return NotImplemented
+    #     return self.file_date == other.date
 
 
 @dataclass
@@ -146,7 +146,24 @@ class SCNIRVariant:
         return self.select_variant_type_from_sources()
 
     def select_variant_type_from_sources(self) -> int | None:
-        raise NotImplementedError("Figure this out")
+        sections = list(map(attrgetter("section"), self.text_sources))
+        mapped_sections = list(
+            filter(is_not_none, map(map_variant_type, sections)),
+        )
+        match len(mapped_sections):
+            case 0:
+                return None
+            case 1:
+                return mapped_sections[0]
+            case _:
+                if all(vtype == mapped_sections[0] for vtype in mapped_sections):
+                    return mapped_sections[0]
+                else:
+                    logger.error(
+                        "Variant type inconsistencies with sections, using None: %s",
+                        ", ".join(sections),
+                    )
+                    return None
 
     def build_source_guide(self) -> str:
         match len(self.text_sources):
@@ -163,11 +180,16 @@ class SCNIRVariant:
 
     @staticmethod
     def build_single_source_guide(text_source: TextSource) -> str:
-        raise NotImplementedError("Figure this out")
+        return f"Found in sentence:\n{text_source.sentence}\nFrom file {text_source.filename} - section '{text_source.section}'"
 
     @staticmethod
     def build_multi_source_guide(text_sources: Collection[TextSource]) -> str:
-        raise NotImplementedError("Figure this out")
+        sorted_sources = sorted(text_sources, key=attrgetter("date"))
+        others = (
+            f"nFrom file {text_source.filename} - section '{text_source.section}'"
+            for text_source in sorted_sources[1:]
+        )
+        return f"Multiple sources found, showing earliest:\n{SCNIRVariant.build_single_source_guide(sorted_sources[0])}\n\nOthers:\n{'\n'.join(others)}\n"
 
     @staticmethod
     def blank_row_fragment() -> Iterable[None]:
