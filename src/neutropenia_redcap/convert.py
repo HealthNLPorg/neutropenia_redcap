@@ -26,6 +26,7 @@ parser.add_argument(
     choices=valid_format_choices,
     default=Formats.REDCAP.name,
 )
+parser.add_argument("--smoke_test", action="store_true")
 logger = logging.getLogger(__name__)
 
 logging.basicConfig(
@@ -128,27 +129,37 @@ def mrn_cluster_to_form(mrn: int, mrn_cluster_df: pl.DataFrame) -> SCNIRForm:
     return SCNIRForm(mrn=mrn, gene_mentions=get_gene_mentions(mrn_cluster_df))
 
 
-def raw_output_to_redcap(data_location: str, output_dir: str) -> None:
+def raw_output_to_redcap(data_location: str, output_dir: str, smoke_test: bool) -> None:
     raw_output_frame = pl.read_csv(data_location, separator="\t").with_columns(
         pl.col(pl.String).replace("__UNK__", None)
     )
+    if smoke_test:
+
+        def mrn_fn(fn: str) -> str:
+            return f"UPLOAD_TEST_{get_mrn(fn)}"
+    else:
+        mrn_fn = get_mrn
     final_frame = pl.concat(
         mrn_cluster_to_form(mrn, mrn_cluster_df).to_data_frame()
         for (mrn,), mrn_cluster_df in raw_output_frame.with_columns(
-            MRN=raw_output_frame["Filename"].map_elements(get_mrn)
+            MRN=raw_output_frame["Filename"].map_elements(mrn_fn)
         ).group_by("MRN")
     )
     final_frame.write_csv(os.path.join(output_dir, "redcap_upoad.csv"))
 
 
 def convert(
-    data_location: str, output_dir: str, input_format: Formats, output_format: Formats
+    data_location: str,
+    output_dir: str,
+    input_format: Formats,
+    output_format: Formats,
+    smoke_test: bool,
 ) -> None:
     if input_format == output_format:
         logger.error("Input and output formats are both %s, exiting", input_format.name)
     match input_format, output_format:
         case Formats.RAW_TSV, Formats.REDCAP:
-            raw_output_to_redcap(data_location, output_dir)
+            raw_output_to_redcap(data_location, output_dir, smoke_test)
         case _:
             raise ValueError(
                 "%s to %s not currently supported",
@@ -161,7 +172,13 @@ def main() -> None:
     args = parser.parse_args()
     input_format = Formats(args.input_format)
     output_format = Formats(args.output_format)
-    convert(args.data_location, args.output_dir, input_format, output_format)
+    convert(
+        args.data_location,
+        args.output_dir,
+        input_format,
+        output_format,
+        args.smoke_test,
+    )
 
 
 if __name__ == "__main__":

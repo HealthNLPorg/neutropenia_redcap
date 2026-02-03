@@ -67,31 +67,11 @@ def map_variant_type(variant_type: str | None) -> int | None:
 
 
 @dataclass
-# @functools.total_ordering
 class TextSource:
     filename: str
     section: str
     sentence: str
     file_date: datetime.date
-
-    # @staticmethod
-    # def is_valid_operand(operand: Any) -> bool:
-    #     return hasattr(operand, "date") and isinstance(operand.date, datetime.date)
-
-    # def __lt__(self, other: Any) -> bool:
-    #     if not TextSource.is_valid_operand(other):
-    #         return NotImplemented
-    #     return self.file_date < other.date
-
-    # def __gt__(self, other: Any) -> bool:
-    #     if not TextSource.is_valid_operand(other):
-    #         return NotImplemented
-    #     return self.file_date > other.date
-
-    # def __eq__(self, other: Any) -> bool:
-    #     if not TextSource.is_valid_operand(other):
-    #         return NotImplemented
-    #     return self.file_date == other.date
 
 
 @dataclass
@@ -125,7 +105,9 @@ class SCNIRVariant:
     # Heterozygosity in "Clinical and Research Sequencing Summary Form Comments"
     # or variant level comments
     def build_comment(self) -> str:
-        return self.build_mention_summary()
+        mention_summary = self.build_mention_summary()
+        source_guide = self.build_source_guide()
+        return mention_summary + source_guide
 
     def build_mention_summary(self) -> str:
         normalized_syntax_n = (
@@ -134,9 +116,20 @@ class SCNIRVariant:
         normalized_syntax_p = (
             self.syntax_p.lower() if self.syntax_p is not None else "None found"
         )
+        match self.heterozygous:
+            case None:
+                heterozygous = "Unknown"
+            case False:
+                heterozygous = "No"
+            case True:
+                heterozygous = "Yes"
+            case _:
+                raise ValueError(
+                    f"Improper value for heterozygous field of SCNIR variant {self.heterozygous} - should be a boolean or None"
+                )
         return (
             "Mention Summary:\n"
-            f"Gene: {self.gene.upper()} Nucleotide Syntax: {normalized_syntax_n} Protein Syntax: {normalized_syntax_p}\n\n"
+            f"Gene: {self.gene.upper()} Nucleotide Syntax: {normalized_syntax_n} Protein Syntax: {normalized_syntax_p} Heterozygous: {heterozygous}\n\n"
         )
 
     def select_variant_type(self) -> int | None:
