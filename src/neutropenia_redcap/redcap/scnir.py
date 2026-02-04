@@ -33,6 +33,14 @@ logging.basicConfig(
 
 SCNIR_SCHEMA = [(column_name, pl.String) for column_name in SCNIR_COLUMNS]
 
+VARIANT_TYPES = [
+    "Pathogenic",
+    "Likely Pathogenic",
+    "Benign",
+    "Likely Benign",
+    "Uncertain",
+]
+
 
 @cache
 def map_variant_type(variant_type: str | None) -> int | None:
@@ -94,23 +102,26 @@ class SCNIRVariant:
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
             yield from SCNIRVariant.blank_row_fragment()
+        variant_type, source = self.select_variant_type()
         # sum_germ_var{variant_index}_cdna_{germline_index}
         yield self.syntax_n
         # sum_germ_var{variant_index}_pro_{germline_index}
         yield self.syntax_p
         # sum_germ_var{variant_index}_acmg_{germline_index}
-        yield self.select_variant_type()
+        yield variant_type
         # sum_germ_var{variant_index}_comment_{germline_index}
-        yield self.build_comment()
+        yield self.build_comment(variant_type=variant_type, source=source)
 
     # Heterozygosity in "Clinical and Research Sequencing Summary Form Comments"
     # or variant level comments
-    def build_comment(self) -> str:
-        mention_summary = self.build_mention_summary()
+    def build_comment(self, variant_type: int | None, source: str) -> str:
+        mention_summary = self.build_mention_summary(
+            variant_type=variant_type, source=source
+        )
         source_guide = self.build_source_guide()
         return mention_summary + source_guide
 
-    def build_mention_summary(self) -> str:
+    def build_mention_summary(self, variant_type: int | None, source: str) -> str:
         normalized_syntax_n = (
             self.syntax_n.lower() if self.syntax_n is not None else "None found"
         )
@@ -128,36 +139,41 @@ class SCNIRVariant:
                 raise ValueError(
                     f"Improper value for heterozygous field of SCNIR variant {self.heterozygous} - should be a boolean or None"
                 )
+        normalized_variant_type = (
+            VARIANT_TYPES[variant_type - 1] if variant_type is not None else "Unknown"
+        )
         return (
             "Mention Summary:\n"
-            f"Gene: {self.gene.upper()} Nucleotide Syntax: {normalized_syntax_n} Protein Syntax: {normalized_syntax_p} Heterozygous: {heterozygous}\n\n"
+            f"Gene: {self.gene.upper()} Nucleotide Syntax: {normalized_syntax_n} Protein Syntax: {normalized_syntax_p} Variant Type (Parsed from {source.title()}): {normalized_variant_type} Heterozygous: {heterozygous}\n\n"
         )
 
-    def select_variant_type(self) -> int | None:
+    def select_variant_type(self) -> tuple[int | None, str]:
         model_parsed_variant_type = map_variant_type(self.variant_type)
         if model_parsed_variant_type is not None:
-            return model_parsed_variant_type
+            return model_parsed_variant_type, "sentence"
         return self.select_variant_type_from_sources()
 
-    def select_variant_type_from_sources(self) -> int | None:
+    def select_variant_type_from_sources(self) -> tuple[int | None, str]:
         sections = list(map(attrgetter("section"), self.text_sources))
         mapped_sections = list(
             filter(is_not_none, map(map_variant_type, sections)),
         )
+        variant_type = None
         match len(mapped_sections):
             case 0:
-                return None
+                variant_type = None
             case 1:
-                return mapped_sections[0]
+                variant_type = mapped_sections[0]
             case _:
                 if all(vtype == mapped_sections[0] for vtype in mapped_sections):
-                    return mapped_sections[0]
+                    variant_type = mapped_sections[0]
                 else:
                     logger.error(
                         "Variant type inconsistencies with sections, using None: %s",
                         ", ".join(sections),
                     )
-                    return None
+                    variant_type = None
+        return variant_type, "sections"
 
     def build_source_guide(self) -> str:
         match len(self.text_sources):
