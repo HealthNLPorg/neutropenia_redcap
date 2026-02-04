@@ -151,6 +151,8 @@ def raw_output_to_redcap(data_location: str, output_dir: str, smoke_test: bool) 
             MRN=raw_output_frame["Filename"].map_elements(mrn_fn)
         ).group_by("MRN")
     )
+    if smoke_test:
+        final_frame = final_frame.head(2)
     final_frame.write_csv(os.path.join(output_dir, "redcap_upoad.csv"))
 
 
