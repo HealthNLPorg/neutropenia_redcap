@@ -7,15 +7,16 @@ from dataclasses import dataclass, field
 from datetime import date
 from functools import cache
 from operator import attrgetter, is_not_none
+from typing import ClassVar
 
 import polars as pl
 from more_itertools import padded, partition
 
-from .redcap_import import (
-    MAXIMUM_GERMLINES,
-    MAXIMUM_VARIANTS,
-    MINIMUM_VARIANTS,
-    SCNIR_COLUMNS,
+from .redcap_import.germline.scnir import (
+    MAXIMUM_SCNIR_GERMLINE_VARIANTS,
+    MAXIMUM_SCNIR_GERMLINES,
+    MINIMUM_SCNIR_GERMLINE_VARIANTS,
+    SCNIR_GERMLINE_COLUMNS,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,9 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-SCNIR_SCHEMA = [(column_name, pl.String) for column_name in SCNIR_COLUMNS]
+SCNIR_GERMLINE_SCHEMA = [
+    (column_name, pl.String) for column_name in SCNIR_GERMLINE_COLUMNS
+]
 
 VARIANT_TYPES = [
     "Pathogenic",
@@ -79,7 +82,7 @@ class TextSource:
 
 
 @dataclass(eq=True, frozen=True)
-class SCNIRVariant:
+class SomaticVariant:
     gene: str
     syntax_p: str | None
     syntax_n: str | None
@@ -92,11 +95,33 @@ class SCNIRVariant:
     specimen_collection_dates: Collection[date] = field(compare=False)
     sample_sources: Collection[str] = field(compare=False)
 
+    # TODO a lot of the potential methods might be coordinated with the
+    # germline variant code
+
+
+@dataclass(eq=True, frozen=True)
+class GermlineVariant:
+    gene: str
+    syntax_p: str | None
+    syntax_n: str | None
+    variant_type: str | None
+    vaf: str | None
+    heterozygous: (
+        bool | None
+    )  # True for is heterozygous, False for definitely isn't, None for unknown
+    text_sources: Collection[TextSource] = field(compare=False)
+    specimen_collection_dates: Collection[date] = field(compare=False)
+    sample_sources: Collection[str] = field(compare=False)
+    # protein syntax, nucleotide syntax, variant type, comment
+    total_variant_attrs: ClassVar[int] = 4
+
     # Another weird thing is I can't find the field where the specimen collection date
     # would go
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
-            yield from SCNIRVariant.blank_row_fragment()
+            yield from GermlineVariant.blank_row_fragment(
+                total_variant_attrs=GermlineVariant.total_variant_attrs
+            )
         variant_type, source = self.select_variant_type()
         # sum_germ_var{variant_index}_cdna_{germline_index}
         yield self.syntax_n
@@ -175,11 +200,11 @@ class SCNIRVariant:
             case 0:
                 raise ValueError("Mention has no text sources")
             case 1:
-                return SCNIRVariant.build_single_source_guide(
+                return GermlineVariant.build_single_source_guide(
                     text_source=next(iter(self.text_sources))
                 )
             case _:
-                return SCNIRVariant.build_multi_source_guide(
+                return GermlineVariant.build_multi_source_guide(
                     text_sources=self.text_sources
                 )
 
@@ -197,7 +222,7 @@ class SCNIRVariant:
             f"From file {text_source.filename} - section '{text_source.section}'"
             for text_source in sorted_sources[1:]
         )
-        proper = f"Multiple sources found, showing earliest:\n{SCNIRVariant.build_single_source_guide(sorted_sources[0])}\n\nOthers least to most recent:\n{'\n'.join(others)}\n"
+        proper = f"Multiple sources found, showing earliest:\n{GermlineVariant.build_single_source_guide(sorted_sources[0])}\n\nOthers least to most recent:\n{'\n'.join(others)}\n"
         no_date_info = list(no_date_info)
         if len(no_date_info) > 0:
             no_date_info_mentions = "\n".join(
@@ -208,42 +233,60 @@ class SCNIRVariant:
         return proper
 
     @staticmethod
-    def blank_row_fragment() -> Iterable[None]:
-        for _ in range(4):
+    def blank_row_fragment(total_variant_attrs: int) -> Iterable[None]:
+        for _ in range(total_variant_attrs):
             yield None
 
 
 @dataclass(eq=True, frozen=True)
-class SCNIRGeneMention:
+class GermlineGeneMention:
     gene: str
-    variants: Collection[SCNIRVariant] = field(compare=False)
+    variants: Collection[GermlineVariant] = field(compare=False)
+
+
+@dataclass(eq=True, frozen=True)
+class SCNIRGermlineGeneMention:
+    gene: str
+    variants: Collection[GermlineVariant] = field(compare=False)
 
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
-            yield from SCNIRGeneMention.blank_row_fragment()
+            yield from SCNIRGermlineGeneMention.blank_row_fragment()
         # sum_germ_gene_{germline_index}
         yield self.gene
         # sum_germ_num_var_{germline_index}
-        yield min(len(self.variants), MAXIMUM_VARIANTS)
-        for variant in padded(self.variants, n=MAXIMUM_VARIANTS, fillvalue=None):
+        yield min(len(self.variants), MAXIMUM_SCNIR_GERMLINE_VARIANTS)
+        for variant in padded(
+            self.variants, n=MAXIMUM_SCNIR_GERMLINE_VARIANTS, fillvalue=None
+        ):
             yield from (
                 variant.to_row_fragment()
                 if variant is not None
-                else SCNIRVariant.blank_row_fragment()
+                else GermlineVariant.blank_row_fragment(
+                    total_variant_attrs=GermlineVariant.total_variant_attrs
+                )
             )
 
     @staticmethod
     def blank_row_fragment() -> Iterable[None]:
         yield None
         yield None
-        for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS + 1):
-            yield from SCNIRVariant.blank_row_fragment()
+        for i in range(
+            MINIMUM_SCNIR_GERMLINE_VARIANTS, MAXIMUM_SCNIR_GERMLINE_VARIANTS + 1
+        ):
+            yield from GermlineVariant.blank_row_fragment(
+                total_variant_attrs=GermlineVariant.total_variant_attrs
+            )
 
 
 @dataclass
-class SCNIRForm:
+class GermlineForm:
     mrn: int
-    gene_mentions: Collection[SCNIRGeneMention]
+
+
+@dataclass
+class SCNIRGermlineForm(GermlineForm):
+    gene_mentions: Collection[SCNIRGermlineGeneMention]
 
     def to_row(self) -> Iterable[str | bool | None]:
         # patient_id
@@ -251,14 +294,16 @@ class SCNIRForm:
         # sum_germ, 1 == "Yes"
         yield 1
         # sum_germ_num_gen
-        yield min(len(self.gene_mentions), MAXIMUM_GERMLINES)
-        for germline in padded(self.gene_mentions, n=MAXIMUM_GERMLINES, fillvalue=None):
+        yield min(len(self.gene_mentions), MAXIMUM_SCNIR_GERMLINES)
+        for germline in padded(
+            self.gene_mentions, n=MAXIMUM_SCNIR_GERMLINES, fillvalue=None
+        ):
             yield from (
-                germline.to_row_fragment()
-                if germline is not None
-                else SCNIRGeneMention.blank_row_fragment()
+                SCNIRGermlineGeneMention.blank_row_fragment()
+                if germline is None
+                else germline.to_row_fragment()
             )
 
     def to_data_frame(self) -> pl.DataFrame:
         data = [list(self.to_row())]
-        return pl.DataFrame(data=data, schema=SCNIR_SCHEMA, orient="row")
+        return pl.DataFrame(data=data, schema=SCNIR_GERMLINE_SCHEMA, orient="row")

@@ -11,7 +11,12 @@ import polars as pl
 
 from .filename_utils import get_mrn
 from .formats import Formats, valid_format_choices
-from .redcap.scnir import SCNIRForm, SCNIRGeneMention, SCNIRVariant, TextSource
+from .redcap.scnir import (
+    GermlineVariant,
+    SCNIRGermlineForm,
+    SCNIRGermlineGeneMention,
+    TextSource,
+)
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("--data_location", type=str)
@@ -75,12 +80,12 @@ def get_variant(
     gene: str,
     clustered_attributes: tuple[str, ...],
     clustered_attribute_df: pl.DataFrame,
-) -> SCNIRVariant:
+) -> GermlineVariant:
     syntax_n, syntax_p, variant_type, vaf = clustered_attributes
     heterozygous = (
         True if vaf is not None and vaf.strip().lower() == "heterozygous" else None
     )
-    return SCNIRVariant(
+    return GermlineVariant(
         gene=gene,
         syntax_p=syntax_p,
         syntax_n=syntax_n,
@@ -107,7 +112,7 @@ def get_variants(
     gene: str,
     gene_cluster_df: pl.DataFrame,
     attributes: tuple[str, ...] = ("Syntax_N", "Syntax_P", "Type", "Vaf"),
-) -> Collection[SCNIRVariant]:
+) -> Collection[GermlineVariant]:
     return {
         get_variant(
             gene=gene,
@@ -120,21 +125,25 @@ def get_variants(
     }
 
 
-def get_gene_mention(gene: str, gene_cluster_df: pl.DataFrame) -> SCNIRGeneMention:
-    return SCNIRGeneMention(
+def get_gene_mention(
+    gene: str, gene_cluster_df: pl.DataFrame
+) -> SCNIRGermlineGeneMention:
+    return SCNIRGermlineGeneMention(
         gene=gene, variants=get_variants(gene=gene, gene_cluster_df=gene_cluster_df)
     )
 
 
-def get_gene_mentions(mrn_cluster_df: pl.DataFrame) -> Collection[SCNIRGeneMention]:
+def get_gene_mentions(
+    mrn_cluster_df: pl.DataFrame,
+) -> Collection[SCNIRGermlineGeneMention]:
     return {
         get_gene_mention(gene=gene, gene_cluster_df=gene_cluster_df)
         for (gene,), gene_cluster_df in mrn_cluster_df.group_by("Gene")
     }
 
 
-def mrn_cluster_to_form(mrn: int, mrn_cluster_df: pl.DataFrame) -> SCNIRForm:
-    return SCNIRForm(mrn=mrn, gene_mentions=get_gene_mentions(mrn_cluster_df))
+def mrn_cluster_to_form(mrn: int, mrn_cluster_df: pl.DataFrame) -> SCNIRGermlineForm:
+    return SCNIRGermlineForm(mrn=mrn, gene_mentions=get_gene_mentions(mrn_cluster_df))
 
 
 def raw_output_to_redcap(data_location: str, output_dir: str, smoke_test: bool) -> None:
