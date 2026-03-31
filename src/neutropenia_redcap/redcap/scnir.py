@@ -1,15 +1,15 @@
+from __future__ import annotations
+
 import datetime
 import logging
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from functools import cache
-from itertools import chain, islice, repeat
 from operator import attrgetter, is_not_none
-from typing import cast
 
 import polars as pl
-from more_itertools import partition
+from more_itertools import padded, partition
 
 from .redcap_import import (
     MAXIMUM_GERMLINES,
@@ -19,11 +19,6 @@ from .redcap_import import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def pad_iterable[T, S](iterable: Iterable[T], n: int, pad: S) -> Iterable[T | S]:
-    return islice(chain(iterable, cast(Iterable[S], repeat(pad))), n)
-
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -230,7 +225,7 @@ class SCNIRGeneMention:
         yield self.gene
         # sum_germ_num_var_{germline_index}
         yield min(len(self.variants), MAXIMUM_VARIANTS)
-        for variant in pad_iterable(self.variants, n=MAXIMUM_VARIANTS, pad=None):
+        for variant in padded(self.variants, n=MAXIMUM_VARIANTS, fillvalue=None):
             yield from (
                 variant.to_row_fragment()
                 if variant is not None
@@ -257,7 +252,7 @@ class SCNIRForm:
         yield 1
         # sum_germ_num_gen
         yield min(len(self.gene_mentions), MAXIMUM_GERMLINES)
-        for germline in pad_iterable(self.gene_mentions, n=MAXIMUM_GERMLINES, pad=None):
+        for germline in padded(self.gene_mentions, n=MAXIMUM_GERMLINES, fillvalue=None):
             yield from (
                 germline.to_row_fragment()
                 if germline is not None

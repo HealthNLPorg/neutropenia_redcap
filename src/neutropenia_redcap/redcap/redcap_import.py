@@ -34,12 +34,16 @@ def germline_index_to_columns(germline_index: int) -> Sequence[str]:
     ]
 
 
-SCNIR_COLUMNS = [
-    "patient_id",
-    "sum_germ",
-    "sum_germ_num_gen",
-    *chain.from_iterable(
-        germline_index_to_columns(germline_index)
-        for germline_index in range(MINIMUM_GERMLINES, MAXIMUM_GERMLINES + 1)
-    ),
-]
+SCNIR_COLUMNS = list(
+    chain(
+        (
+            "patient_id",
+            "sum_germ",
+            "sum_germ_num_gen",
+        ),
+        chain.from_iterable(
+            germline_index_to_columns(germline_index)
+            for germline_index in range(MINIMUM_GERMLINES, MAXIMUM_GERMLINES + 1)
+        ),
+    )
+)

@@ -19,8 +19,9 @@ def get_original_filename(fn: str) -> str:
 
 
 def get_mrn(fn: str) -> str:  # int |:
-    if "".join(takewhile(str.isnumeric, fn.split("_")[1])).isnumeric():
-        return "".join(takewhile(str.isnumeric, fn.split("_")[1]))
+    potential_mrn = "".join(takewhile(str.isnumeric, fn.split("_")[1]))
+    if potential_mrn.isnumeric():
+        return potential_mrn
     else:
         logger.error("Bad fn: %s", fn)
         return fn.split("_")[1].split("-")[0]
