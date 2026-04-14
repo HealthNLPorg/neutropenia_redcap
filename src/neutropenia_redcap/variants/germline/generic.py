@@ -7,6 +7,7 @@ from typing import ClassVar
 
 from more_itertools import partition
 
+from .. import GeneMention, Variant
 from ..sources import TextSource
 from ..type import VARIANT_TYPES, map_variant_type
 
@@ -20,7 +21,7 @@ logging.basicConfig(
 
 
 @dataclass(eq=True, frozen=True)
-class GermlineVariant:
+class GermlineVariant(Variant):
     gene: str
     syntax_p: str | None
     syntax_n: str | None
@@ -158,6 +159,6 @@ class GermlineVariant:
 
 
 @dataclass(eq=True, frozen=True)
-class GermlineGeneMention:
+class GermlineGeneMention(GeneMention):
     gene: str
     variants: Collection[GermlineVariant] = field(compare=False)

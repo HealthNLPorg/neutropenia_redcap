@@ -11,6 +11,7 @@ from redcap.forms.somatic import (
     MINIMUM_SOMATIC_VARIANTS,
 )
 
+from . import GeneMention, Variant
 from .sources import TextSource
 from .type import VARIANT_TYPES, map_variant_type
 
@@ -24,7 +25,7 @@ logging.basicConfig(
 
 
 @dataclass(eq=True, frozen=True)
-class SomaticVariant:
+class SomaticVariant(Variant):
     gene: str
     syntax_p: str | None
     syntax_n: str | None
@@ -162,7 +163,7 @@ class SomaticVariant:
 
 
 @dataclass(eq=True, frozen=True)
-class SomaticGeneMention:
+class SomaticGeneMention(GeneMention):
     gene: str
     variants: Collection[SomaticVariant] = field(compare=False)
 
