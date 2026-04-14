@@ -12,9 +12,9 @@ class SupportedVariantTypes(Enum):
 
 @dataclass(eq=True, frozen=True)
 class Variant(ABC):
-    raise NotImplementedError
+    pass
 
 
 @dataclass(eq=True, frozen=True)
 class GeneMention(ABC):
-    raise NotImplementedError
+    pass
