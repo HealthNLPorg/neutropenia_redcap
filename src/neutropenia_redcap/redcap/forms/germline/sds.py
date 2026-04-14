@@ -38,9 +38,7 @@ def germline_index_to_columns(germline_index: int) -> Sequence[str]:
         *chain.from_iterable(
             map(
                 variant_index_to_columns,
-                range(
-                    MINIMUM_SDS_GERMLINE_VARIANTS, MAXIMUM_SDS_GERMLINE_VARIANTS + 1
-                ),
+                range(MINIMUM_SDS_GERMLINE_VARIANTS, MAXIMUM_SDS_GERMLINE_VARIANTS + 1),
             )
         ),
     ]
@@ -62,9 +60,7 @@ SDS_GERMLINE_COLUMNS = list(
     )
 )
 
-SDS_GERMLINE_SCHEMA = [
-    (column_name, pl.String) for column_name in SDS_GERMLINE_COLUMNS
-]
+SDS_GERMLINE_SCHEMA = [(column_name, pl.String) for column_name in SDS_GERMLINE_COLUMNS]
 
 
 @dataclass
