@@ -271,7 +271,7 @@ class SCNIRGermlineGeneMention:
     def blank_row_fragment() -> Iterable[None]:
         yield None
         yield None
-        for i in range(
+        for _ in range(
             MINIMUM_SCNIR_GERMLINE_VARIANTS, MAXIMUM_SCNIR_GERMLINE_VARIANTS + 1
         ):
             yield from GermlineVariant.blank_row_fragment(
