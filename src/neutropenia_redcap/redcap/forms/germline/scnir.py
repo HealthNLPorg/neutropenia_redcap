@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from functools import partial
@@ -71,6 +69,7 @@ SCNIR_GERMLINE_SCHEMA = [
 
 @dataclass
 class SCNIRGermlineForm(GermlineForm):
+    form_name = "scnir_germline"
     gene_mentions: Collection[SCNIRGermlineGeneMention]
 
     def to_row(self) -> Iterable[str | bool | None]:
