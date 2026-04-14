@@ -181,9 +181,7 @@ def convert(
             raw_output_to_redcap(data_location, output_dir, smoke_test)
         case _:
             raise ValueError(
-                "%s to %s not currently supported",
-                input_format.name,
-                output_format.name,
+                f"{input_format.name} to {output_format.name} not currently supported",
             )
 
 
