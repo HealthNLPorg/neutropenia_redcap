@@ -162,3 +162,6 @@ class GermlineVariant(Variant):
 class GermlineGeneMention(GeneMention):
     gene: str
     variants: Collection[GermlineVariant] = field(compare=False)
+
+    def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
+        return []
