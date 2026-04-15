@@ -2,12 +2,14 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from more_itertools import padded
-from redcap.forms.germline.sds import (
-    MAXIMUM_SDS_GERMLINE_VARIANTS,
-    MINIMUM_SDS_GERMLINE_VARIANTS,
-)
 
 from .generic import GermlineGeneMention, GermlineVariant
+
+MINIMUM_SDS_GERMLINES = 1
+MAXIMUM_SDS_GERMLINES = 3
+
+MINIMUM_SDS_GERMLINE_VARIANTS = 1
+MAXIMUM_SDS_GERMLINE_VARIANTS = 4
 
 
 @dataclass(eq=True, frozen=True)

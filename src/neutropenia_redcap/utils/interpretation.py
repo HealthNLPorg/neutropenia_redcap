@@ -1,5 +1,5 @@
-from variants import SupportedVariantTypes
-from variants.sources import TextSource
+from neutropenia_redcap.variants import SupportedVariantTypes
+from neutropenia_redcap.variants.sources import TextSource
 
 from .filename import parse_date_from_filename, parse_type_from_filename
 

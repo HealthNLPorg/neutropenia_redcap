@@ -1,7 +1,7 @@
 from collections.abc import Collection
 from dataclasses import dataclass
 
-from variants.germline.generic import GermlineGeneMention
+from neutropenia_redcap.variants.germline.generic import GermlineGeneMention
 
 from ..generic import REDCapForm
 

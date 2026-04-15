@@ -5,15 +5,16 @@ from itertools import chain
 
 import polars as pl
 from more_itertools import padded
-from variants.somatic import SomaticGeneMention
+
+from neutropenia_redcap.variants.somatic import (
+    MAXIMUM_SOMATIC_VARIANTS,
+    MAXIMUM_SOMATICS,
+    MINIMUM_SOMATIC_VARIANTS,
+    MINIMUM_SOMATICS,
+    SomaticGeneMention,
+)
 
 from .generic import REDCapForm
-
-MINIMUM_SOMATICS = 1
-MAXIMUM_SOMATICS = 3
-
-MINIMUM_SOMATIC_VARIANTS = 1
-MAXIMUM_SOMATIC_VARIANTS = 4
 
 
 def somatic_and_variant_index_to_columns(

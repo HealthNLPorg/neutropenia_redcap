@@ -5,15 +5,18 @@ from itertools import chain
 
 import polars as pl
 from more_itertools import padded
-from variants.germline.sds import SDSGermlineGeneMention
 
-from .generic import GermlineForm
+from neutropenia_redcap.variants.germline.sds import (
+    MAXIMUM_SDS_GERMLINE_VARIANTS,
+    MAXIMUM_SDS_GERMLINES,
+    MINIMUM_SDS_GERMLINE_VARIANTS,
+    MINIMUM_SDS_GERMLINES,
+    SDSGermlineGeneMention,
+)
 
-MINIMUM_SDS_GERMLINES = 1
-MAXIMUM_SDS_GERMLINES = 3
-
-MINIMUM_SDS_GERMLINE_VARIANTS = 1
-MAXIMUM_SDS_GERMLINE_VARIANTS = 4
+from .generic import (
+    GermlineForm,
+)
 
 
 def germline_and_variant_index_to_columns(

@@ -3,12 +3,13 @@ from dataclasses import dataclass, field
 
 from more_itertools import padded
 
-from neutropenia_redcap.redcap.forms.germline.scnir import (
-    MAXIMUM_SCNIR_GERMLINE_VARIANTS,
-    MINIMUM_SCNIR_GERMLINE_VARIANTS,
-)
-
 from .generic import GermlineVariant
+
+MINIMUM_SCNIR_GERMLINES = 1
+MAXIMUM_SCNIR_GERMLINES = 3
+
+MINIMUM_SCNIR_GERMLINE_VARIANTS = 1
+MAXIMUM_SCNIR_GERMLINE_VARIANTS = 4
 
 
 @dataclass(eq=True, frozen=True)

@@ -4,14 +4,16 @@ from dataclasses import dataclass
 from operator import attrgetter, is_not_none
 
 from more_itertools import padded, partition
-from redcap.forms.somatic import (
-    MAXIMUM_SOMATIC_VARIANTS,
-    MINIMUM_SOMATIC_VARIANTS,
-)
 
 from . import GeneMention, Variant
 from .sources import TextSource
 from .type import VARIANT_TYPES, map_variant_type
+
+MINIMUM_SOMATICS = 1
+MAXIMUM_SOMATICS = 3
+
+MINIMUM_SOMATIC_VARIANTS = 1
+MAXIMUM_SOMATIC_VARIANTS = 4
 
 logger = logging.getLogger(__name__)
 
