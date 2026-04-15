@@ -66,7 +66,6 @@ SCHEMA = [(column_name, pl.String) for column_name in COLUMNS]
 
 @dataclass
 class SomaticForm(REDCapForm):
-    form_name = "somatic"
     gene_mentions: Collection[SomaticGeneMention]
 
     def to_row(self) -> Iterable[str | bool | None]:

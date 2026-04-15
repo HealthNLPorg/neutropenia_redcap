@@ -1,9 +1,7 @@
 import logging
 from collections.abc import Collection, Iterable
-from dataclasses import dataclass, field
-from datetime import date
+from dataclasses import dataclass
 from operator import attrgetter, is_not_none
-from typing import ClassVar
 
 from more_itertools import padded, partition
 from redcap.forms.somatic import (
@@ -26,20 +24,6 @@ logging.basicConfig(
 
 @dataclass(eq=True, frozen=True)
 class SomaticVariant(Variant):
-    gene: str
-    syntax_p: str | None
-    syntax_n: str | None
-    variant_type: str | None
-    vaf: str | None
-    heterozygous: (
-        bool | None
-    )  # True for is heterozygous, False for definitely isn't, None for unknown
-    text_sources: Collection[TextSource] = field(compare=False)
-    specimen_collection_dates: Collection[date] = field(compare=False)
-    sample_sources: Collection[str] = field(compare=False)
-    # protein syntax, nucleotide syntax, variant type, comment
-    total_variant_attrs: ClassVar[int] = 4
-
     # Another weird thing is I can't find the field where the specimen collection date
     # would go
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
@@ -164,9 +148,6 @@ class SomaticVariant(Variant):
 
 @dataclass(eq=True, frozen=True)
 class SomaticGeneMention(GeneMention):
-    gene: str
-    variants: Collection[SomaticVariant] = field(compare=False)
-
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
             yield from SomaticGeneMention.blank_row_fragment()

@@ -1,5 +1,5 @@
-from collections.abc import Collection, Iterable
-from dataclasses import dataclass, field
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 from more_itertools import padded
 from redcap.forms.germline.sds import (
@@ -7,14 +7,11 @@ from redcap.forms.germline.sds import (
     MINIMUM_SDS_GERMLINE_VARIANTS,
 )
 
-from .generic import GermlineVariant
+from .generic import GermlineGeneMention, GermlineVariant
 
 
 @dataclass(eq=True, frozen=True)
-class SDSGermlineGeneMention:
-    gene: str
-    variants: Collection[GermlineVariant] = field(compare=False)
-
+class SDSGermlineGeneMention(GermlineGeneMention):
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
             yield from SDSGermlineGeneMention.blank_row_fragment()

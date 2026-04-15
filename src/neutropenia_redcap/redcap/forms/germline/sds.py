@@ -65,7 +65,6 @@ SDS_GERMLINE_SCHEMA = [(column_name, pl.String) for column_name in SDS_GERMLINE_
 
 @dataclass
 class SDSGermlineForm(GermlineForm):
-    form_name = "sds_germline"
     gene_mentions: Collection[SDSGermlineGeneMention]
 
     def to_row(self) -> Iterable[str | bool | None]:
