@@ -130,3 +130,22 @@ def get_variant(
             )
         case _:
             raise ValueError(f"Unsupported variant type {_}")
+
+
+def get_variants(
+    gene: str,
+    corpus: str,
+    gene_cluster_df: pl.DataFrame,
+    attributes: tuple[str, ...] = ("Syntax_N", "Syntax_P", "Type", "Vaf"),
+) -> Collection[Variant]:
+    return {
+        get_variant(
+            gene=gene,
+            corpus=corpus,
+            clustered_attributes=clustered_attributes,
+            clustered_attribute_df=clustered_attribute_df,
+        )
+        for clustered_attributes, clustered_attribute_df in gene_cluster_df.group_by(
+            *attributes
+        )
+    }
