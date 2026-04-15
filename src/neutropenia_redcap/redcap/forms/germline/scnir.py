@@ -5,7 +5,8 @@ from itertools import chain
 
 import polars as pl
 from more_itertools import padded
-from variants.germline.scnir import SCNIRGermlineGeneMention
+
+from neutropenia_redcap.variants.germline.scnir import SCNIRGermlineGeneMention
 
 from .generic import GermlineForm
 

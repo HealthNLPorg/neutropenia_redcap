@@ -2,7 +2,8 @@ from collections.abc import Collection, Iterable
 from dataclasses import dataclass, field
 
 from more_itertools import padded
-from redcap.forms.germline.scnir import (
+
+from neutropenia_redcap.redcap.forms.germline.scnir import (
     MAXIMUM_SCNIR_GERMLINE_VARIANTS,
     MINIMUM_SCNIR_GERMLINE_VARIANTS,
 )
