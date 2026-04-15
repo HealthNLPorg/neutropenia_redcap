@@ -1,18 +1,15 @@
 import argparse
 import logging
 import os
-from collections.abc import Collection, Iterable
 from itertools import chain
-from operator import attrgetter, methodcaller
+from operator import itemgetter
 
 import polars as pl
 from more_itertools import map_reduce
-from variants.sources import TextSource
 
-from .redcap.forms.generic import REDCapForm
+from .utils.dataframe import mrn_cluster_to_forms
 from .utils.filename import get_mrn
 from .utils.formats import Formats
-from .utils.interpretation import attributes_to_text_source
 
 VALID_FORMAT_CHOICES = [_format.name for _format in Formats]
 parser = argparse.ArgumentParser(description="")
@@ -50,23 +47,6 @@ logging.basicConfig(
 )
 
 
-def parse_text_sources(clustered_attribute_df: pl.DataFrame) -> Collection[TextSource]:
-    return {
-        attributes_to_text_source(sentence=sentence, section=section, filename=filename)
-        for sentence, section, filename in zip(
-            clustered_attribute_df["Sentence"],
-            clustered_attribute_df["Section"],
-            clustered_attribute_df["Filename"],
-        )
-    }
-
-
-def parse_forms(
-    mrn: int, corpus: str, mrn_cluster_df: pl.DataFrame
-) -> Iterable[REDCapForm]:
-    raise NotImplementedError
-
-
 def tsv_to_redcap(
     data_location: str, output_dir: str, corpus: str, smoke_test: bool
 ) -> None:
@@ -80,21 +60,21 @@ def tsv_to_redcap(
     else:
         mrn_fn = get_mrn
     forms = chain.from_iterable(
-        parse_forms(mrn, corpus, mrn_cluster_df)
+        mrn_cluster_to_forms(mrn, corpus, mrn_cluster_df).items()
         for (mrn,), mrn_cluster_df in raw_output_frame.with_columns(
             MRN=raw_output_frame["Filename"].map_elements(mrn_fn)
         ).group_by("MRN")
     )
-    for form_type_name, form_frame in map_reduce(
+    for form_type, form_frame in map_reduce(
         iterable=forms,
-        keyfunc=attrgetter("form_name"),
-        valuefunc=methodcaller("to_data_frame"),
+        keyfunc=itemgetter(0),
+        valuefunc=lambda t: t[1].to_data_frame(),
         reducefunc=pl.concat,
     ).items():
         if smoke_test:
             form_frame = form_frame.head(2)
         form_frame.write_csv(
-            os.path.join(output_dir, f"{form_type_name}_redcap_upoad.csv")
+            os.path.join(output_dir, f"{form_type.name.lower()}_redcap_upoad.csv")
         )
 
 
