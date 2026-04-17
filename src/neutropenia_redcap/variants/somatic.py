@@ -3,17 +3,14 @@ from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from operator import attrgetter, is_not_none
 
-from more_itertools import padded, partition
+from more_itertools import partition
 
 from . import GeneMention, Variant
 from .sources import TextSource
 from .type import VARIANT_TYPES, map_variant_type
 
-MINIMUM_SOMATICS = 1
-MAXIMUM_SOMATICS = 3
-
 MINIMUM_SOMATIC_VARIANTS = 1
-MAXIMUM_SOMATIC_VARIANTS = 4
+MAXIMUM_SOMATIC_VARIANTS = 5  # Per REDCap - caveat is this is total, not per gene
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +31,13 @@ class SomaticVariant(Variant):
                 total_variant_attrs=SomaticVariant.total_variant_attrs
             )
         variant_type, source = self.select_variant_type()
-        # sum_germ_var{variant_index}_cdna_{germline_index}
+        # sum_som_cdna_{variant_index}
         yield self.syntax_n
-        # sum_germ_var{variant_index}_pro_{germline_index}
+        # sum_som_pro_{variant_index}
         yield self.syntax_p
-        # sum_germ_var{variant_index}_acmg_{germline_index}
+        # sum_som_acmg_{variant_index}
         yield variant_type
-        # sum_germ_var{variant_index}_comment_{germline_index}
+        # sum_som_comment_{variant_index}
         yield self.build_comment(variant_type=variant_type, source=source)
 
     # Heterozygosity in "Clinical and Research Sequencing Summary Form Comments"
@@ -81,7 +78,12 @@ class SomaticVariant(Variant):
     def select_variant_type(self) -> tuple[int | None, str]:
         model_parsed_variant_type = map_variant_type(self.variant_type)
         if model_parsed_variant_type is not None:
-            return model_parsed_variant_type, "sentence"
+            return (
+                model_parsed_variant_type
+                if model_parsed_variant_type % 2
+                else model_parsed_variant_type - 1,
+                "sentence",
+            )
         return self.select_variant_type_from_sources()
 
     def select_variant_type_from_sources(self) -> tuple[int | None, str]:
@@ -151,28 +153,34 @@ class SomaticVariant(Variant):
 @dataclass(eq=True, frozen=True)
 class SomaticGeneMention(GeneMention):
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
-        if blank:
-            yield from SomaticGeneMention.blank_row_fragment()
-        # sum_germ_gene_{germline_index}
-        yield self.gene
-        # sum_germ_num_var_{germline_index}
-        yield min(len(self.variants), MAXIMUM_SOMATIC_VARIANTS)
-        for variant in padded(
-            self.variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None
-        ):
-            yield from (
-                variant.to_row_fragment()
-                if variant is not None
-                else SomaticVariant.blank_row_fragment(
-                    total_variant_attrs=SomaticVariant.total_variant_attrs
-                )
-            )
+        logger.error(
+            "Do not use this method, somatic forms use variants rather than full mentions"
+        )
+        return []
 
-    @staticmethod
-    def blank_row_fragment() -> Iterable[None]:
-        yield None
-        yield None
-        for _ in range(MINIMUM_SOMATIC_VARIANTS, MAXIMUM_SOMATIC_VARIANTS + 1):
-            yield from SomaticVariant.blank_row_fragment(
-                total_variant_attrs=SomaticVariant.total_variant_attrs
-            )
+    # def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
+    #     if blank:
+    #         yield from SomaticGeneMention.blank_row_fragment()
+    #     # sum_germ_gene_{germline_index}
+    #     yield self.gene
+    #     # sum_germ_num_var_{germline_index}
+    #     yield min(len(self.variants), MAXIMUM_SOMATIC_VARIANTS)
+    #     for variant in padded(
+    #         self.variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None
+    #     ):
+    #         yield from (
+    #             variant.to_row_fragment()
+    #             if variant is not None
+    #             else SomaticVariant.blank_row_fragment(
+    #                 total_variant_attrs=SomaticVariant.total_variant_attrs
+    #             )
+    #         )
+
+    # @staticmethod
+    # def blank_row_fragment() -> Iterable[None]:
+    #     yield None
+    #     yield None
+    #     for _ in range(MINIMUM_SOMATIC_VARIANTS, MAXIMUM_SOMATIC_VARIANTS + 1):
+    #         yield from SomaticVariant.blank_row_fragment(
+    #             total_variant_attrs=SomaticVariant.total_variant_attrs
+    #         )
