@@ -1,29 +1,21 @@
-import datetime
 import logging
 from collections.abc import Collection, Iterable
-from dataclasses import dataclass, field
-from datetime import date
-from functools import cache
-from itertools import chain, islice, repeat
+from dataclasses import dataclass
 from operator import attrgetter, is_not_none
-from typing import cast
 
-import polars as pl
-from more_itertools import partition
+from more_itertools import padded, partition
 
-from .redcap_import import (
-    MAXIMUM_GERMLINES,
-    MAXIMUM_VARIANTS,
-    MINIMUM_VARIANTS,
-    SCNIR_COLUMNS,
-)
+from . import GeneMention, Variant
+from .sources import TextSource
+from .type import VARIANT_TYPES, map_variant_type
+
+MINIMUM_SOMATICS = 1
+MAXIMUM_SOMATICS = 3
+
+MINIMUM_SOMATIC_VARIANTS = 1
+MAXIMUM_SOMATIC_VARIANTS = 4
 
 logger = logging.getLogger(__name__)
-
-
-def pad_iterable[T, S](iterable: Iterable[T], n: int, pad: S) -> Iterable[T | S]:
-    return islice(chain(iterable, cast(Iterable[S], repeat(pad))), n)
-
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -31,77 +23,16 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-SCNIR_SCHEMA = [(column_name, pl.String) for column_name in SCNIR_COLUMNS]
-
-VARIANT_TYPES = [
-    "Pathogenic",
-    "Likely Pathogenic",
-    "Benign",
-    "Likely Benign",
-    "Uncertain",
-]
-
-
-@cache
-def map_variant_type(variant_type: str | None) -> int | None:
-    if variant_type is None:
-        return None
-    normalized_variant_type = " ".join(variant_type.lower().split())
-    is_likely = "likely" in normalized_variant_type
-    is_benign = "benign" in normalized_variant_type
-    is_pathogenic = "patho" in normalized_variant_type
-    is_uncertain = (
-        "uncertain" in normalized_variant_type
-        or "vus" in normalized_variant_type
-        or "unknown significance" in normalized_variant_type
-    )
-    match is_likely, is_benign, is_pathogenic, is_uncertain:
-        # Unmodified pathogenic
-        case False, False, True, False:
-            return 1
-        # Likely pathogenic
-        case True, False, True, False:
-            return 2
-        # Unmodified benign
-        case False, True, False, False:
-            return 3
-        # Likely benign
-        case True, True, False, False:
-            return 4
-        # Unmodified uncertain
-        case False, False, False, True:
-            return 5
-    logger.warning("Cannot currently map: %s", variant_type)
-    return None
-
 
 @dataclass(eq=True, frozen=True)
-class TextSource:
-    filename: str
-    section: str
-    sentence: str
-    file_date: datetime.date | None
-
-
-@dataclass(eq=True, frozen=True)
-class SCNIRVariant:
-    gene: str
-    syntax_p: str | None
-    syntax_n: str | None
-    variant_type: str | None
-    vaf: str | None
-    heterozygous: (
-        bool | None
-    )  # True for is heterozygous, False for definitely isn't, None for unknown
-    text_sources: Collection[TextSource] = field(compare=False)
-    specimen_collection_dates: Collection[date] = field(compare=False)
-    sample_sources: Collection[str] = field(compare=False)
-
+class SomaticVariant(Variant):
     # Another weird thing is I can't find the field where the specimen collection date
     # would go
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
-            yield from SCNIRVariant.blank_row_fragment()
+            yield from SomaticVariant.blank_row_fragment(
+                total_variant_attrs=SomaticVariant.total_variant_attrs
+            )
         variant_type, source = self.select_variant_type()
         # sum_germ_var{variant_index}_cdna_{germline_index}
         yield self.syntax_n
@@ -158,7 +89,6 @@ class SCNIRVariant:
         mapped_sections = list(
             filter(is_not_none, map(map_variant_type, sections)),
         )
-        variant_type = None
         match len(mapped_sections):
             case 0:
                 variant_type = None
@@ -180,11 +110,11 @@ class SCNIRVariant:
             case 0:
                 raise ValueError("Mention has no text sources")
             case 1:
-                return SCNIRVariant.build_single_source_guide(
+                return SomaticVariant.build_single_source_guide(
                     text_source=next(iter(self.text_sources))
                 )
             case _:
-                return SCNIRVariant.build_multi_source_guide(
+                return SomaticVariant.build_multi_source_guide(
                     text_sources=self.text_sources
                 )
 
@@ -202,7 +132,7 @@ class SCNIRVariant:
             f"From file {text_source.filename} - section '{text_source.section}'"
             for text_source in sorted_sources[1:]
         )
-        proper = f"Multiple sources found, showing earliest:\n{SCNIRVariant.build_single_source_guide(sorted_sources[0])}\n\nOthers least to most recent:\n{'\n'.join(others)}\n"
+        proper = f"Multiple sources found, showing earliest:\n{SomaticVariant.build_single_source_guide(sorted_sources[0])}\n\nOthers least to most recent:\n{'\n'.join(others)}\n"
         no_date_info = list(no_date_info)
         if len(no_date_info) > 0:
             no_date_info_mentions = "\n".join(
@@ -213,57 +143,36 @@ class SCNIRVariant:
         return proper
 
     @staticmethod
-    def blank_row_fragment() -> Iterable[None]:
-        for _ in range(4):
+    def blank_row_fragment(total_variant_attrs: int) -> Iterable[None]:
+        for _ in range(total_variant_attrs):
             yield None
 
 
 @dataclass(eq=True, frozen=True)
-class SCNIRGeneMention:
-    gene: str
-    variants: Collection[SCNIRVariant] = field(compare=False)
-
+class SomaticGeneMention(GeneMention):
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
-            yield from SCNIRGeneMention.blank_row_fragment()
+            yield from SomaticGeneMention.blank_row_fragment()
         # sum_germ_gene_{germline_index}
         yield self.gene
         # sum_germ_num_var_{germline_index}
-        yield min(len(self.variants), MAXIMUM_VARIANTS)
-        for variant in pad_iterable(self.variants, n=MAXIMUM_VARIANTS, pad=None):
+        yield min(len(self.variants), MAXIMUM_SOMATIC_VARIANTS)
+        for variant in padded(
+            self.variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None
+        ):
             yield from (
                 variant.to_row_fragment()
                 if variant is not None
-                else SCNIRVariant.blank_row_fragment()
+                else SomaticVariant.blank_row_fragment(
+                    total_variant_attrs=SomaticVariant.total_variant_attrs
+                )
             )
 
     @staticmethod
     def blank_row_fragment() -> Iterable[None]:
         yield None
         yield None
-        for i in range(MINIMUM_VARIANTS, MAXIMUM_VARIANTS + 1):
-            yield from SCNIRVariant.blank_row_fragment()
-
-
-@dataclass
-class SCNIRForm:
-    mrn: int
-    gene_mentions: Collection[SCNIRGeneMention]
-
-    def to_row(self) -> Iterable[str | bool | None]:
-        # patient_id
-        yield self.mrn
-        # sum_germ, 1 == "Yes"
-        yield 1
-        # sum_germ_num_gen
-        yield min(len(self.gene_mentions), MAXIMUM_GERMLINES)
-        for germline in pad_iterable(self.gene_mentions, n=MAXIMUM_GERMLINES, pad=None):
-            yield from (
-                germline.to_row_fragment()
-                if germline is not None
-                else SCNIRGeneMention.blank_row_fragment()
+        for _ in range(MINIMUM_SOMATIC_VARIANTS, MAXIMUM_SOMATIC_VARIANTS + 1):
+            yield from SomaticVariant.blank_row_fragment(
+                total_variant_attrs=SomaticVariant.total_variant_attrs
             )
-
-    def to_data_frame(self) -> pl.DataFrame:
-        data = [list(self.to_row())]
-        return pl.DataFrame(data=data, schema=SCNIR_SCHEMA, orient="row")
