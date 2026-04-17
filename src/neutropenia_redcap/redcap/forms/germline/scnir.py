@@ -1,12 +1,20 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Iterable, Sequence
+from dataclasses import dataclass
 from functools import partial
 from itertools import chain
 
-MINIMUM_SCNIR_GERMLINES = 1
-MAXIMUM_SCNIR_GERMLINES = 3
+import polars as pl
+from more_itertools import padded
 
-MINIMUM_SCNIR_GERMLINE_VARIANTS = 1
-MAXIMUM_SCNIR_GERMLINE_VARIANTS = 4
+from neutropenia_redcap.variants.germline.scnir import (
+    MAXIMUM_SCNIR_GERMLINE_VARIANTS,
+    MAXIMUM_SCNIR_GERMLINES,
+    MINIMUM_SCNIR_GERMLINE_VARIANTS,
+    MINIMUM_SCNIR_GERMLINES,
+    SCNIRGermlineGeneMention,
+)
+
+from .generic import GermlineForm
 
 
 def germline_and_variant_index_to_columns(
@@ -54,3 +62,32 @@ SCNIR_GERMLINE_COLUMNS = list(
         ),
     )
 )
+
+SCNIR_GERMLINE_SCHEMA = [
+    (column_name, pl.String) for column_name in SCNIR_GERMLINE_COLUMNS
+]
+
+
+@dataclass
+class SCNIRGermlineForm(GermlineForm):
+    gene_mentions: Collection[SCNIRGermlineGeneMention]
+
+    def to_row(self) -> Iterable[str | bool | None]:
+        # patient_id
+        yield self.mrn
+        # sum_germ, 1 == "Yes"
+        yield 1
+        # sum_germ_num_gen
+        yield min(len(self.gene_mentions), MAXIMUM_SCNIR_GERMLINES)
+        for germline in padded(
+            self.gene_mentions, n=MAXIMUM_SCNIR_GERMLINES, fillvalue=None
+        ):
+            yield from (
+                SCNIRGermlineGeneMention.blank_row_fragment()
+                if germline is None
+                else germline.to_row_fragment()
+            )
+
+    def to_data_frame(self) -> pl.DataFrame:
+        data = [list(self.to_row())]
+        return pl.DataFrame(data=data, schema=SCNIR_GERMLINE_SCHEMA, orient="row")
