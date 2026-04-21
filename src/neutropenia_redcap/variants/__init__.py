@@ -34,7 +34,7 @@ class Variant(ABC):
     specimen_collection_dates: Collection[date] = field(compare=False)
     sample_sources: Collection[str] = field(compare=False)
     # protein syntax, nucleotide syntax, variant type, comment
-    total_variant_attrs: ClassVar[int] = 4
+    total_variant_attrs: ClassVar[int | None] = None
 
     @abstractmethod
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:

@@ -25,18 +25,24 @@ logging.basicConfig(
 class SomaticVariant(Variant):
     # Another weird thing is I can't find the field where the specimen collection date
     # would go
+    total_variant_attrs = 6
+
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         if blank:
             yield from SomaticVariant.blank_row_fragment(
                 total_variant_attrs=SomaticVariant.total_variant_attrs
             )
         variant_type, source = self.select_variant_type()
+        # sum_som_gene_{variant_index}
+        yield self.gene
         # sum_som_cdna_{variant_index}
         yield self.syntax_n
         # sum_som_pro_{variant_index}
         yield self.syntax_p
-        # sum_som_acmg_{variant_index}
+        # sum_som_path_{variant_index}
         yield variant_type
+        # sum_som_vaf_{variant_index}
+        yield self.vaf
         # sum_som_comment_{variant_index}
         yield self.build_comment(variant_type=variant_type, source=source)
 
@@ -57,16 +63,18 @@ class SomaticVariant(Variant):
             self.syntax_p.lower() if self.syntax_p is not None else "None found"
         )
         match self.heterozygous:
-            case None:
-                heterozygous = "Unknown"
+            # case None:
+            # substituting for _ since including None rendered that block unreachable
             case False:
                 heterozygous = "No"
             case True:
                 heterozygous = "Yes"
             case _:
-                raise ValueError(
-                    f"Improper value for heterozygous field of SCNIR variant {self.heterozygous} - should be a boolean or None"
-                )
+                # raise ValueError(
+                #     f"Improper value for heterozygous field of SCNIR variant {self.heterozygous} - should be a boolean or None"
+                # )
+                heterozygous = "Unknown"
+
         normalized_variant_type = (
             VARIANT_TYPES[variant_type - 1] if variant_type is not None else "Unknown"
         )
@@ -153,34 +161,6 @@ class SomaticVariant(Variant):
 @dataclass(eq=True, frozen=True)
 class SomaticGeneMention(GeneMention):
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
-        logger.error(
+        raise ValueError(
             "Do not use this method, somatic forms use variants rather than full mentions"
         )
-        return []
-
-    # def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
-    #     if blank:
-    #         yield from SomaticGeneMention.blank_row_fragment()
-    #     # sum_germ_gene_{germline_index}
-    #     yield self.gene
-    #     # sum_germ_num_var_{germline_index}
-    #     yield min(len(self.variants), MAXIMUM_SOMATIC_VARIANTS)
-    #     for variant in padded(
-    #         self.variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None
-    #     ):
-    #         yield from (
-    #             variant.to_row_fragment()
-    #             if variant is not None
-    #             else SomaticVariant.blank_row_fragment(
-    #                 total_variant_attrs=SomaticVariant.total_variant_attrs
-    #             )
-    #         )
-
-    # @staticmethod
-    # def blank_row_fragment() -> Iterable[None]:
-    #     yield None
-    #     yield None
-    #     for _ in range(MINIMUM_SOMATIC_VARIANTS, MAXIMUM_SOMATIC_VARIANTS + 1):
-    #         yield from SomaticVariant.blank_row_fragment(
-    #             total_variant_attrs=SomaticVariant.total_variant_attrs
-    #         )

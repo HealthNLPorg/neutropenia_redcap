@@ -4,8 +4,8 @@ from functools import partial
 from itertools import chain
 
 import polars as pl
-from more_itertools import padded
 
+from neutropenia_redcap.utils.iter import up_to_n
 from neutropenia_redcap.variants.germline.sds import (
     MAXIMUM_SDS_GERMLINE_VARIANTS,
     MAXIMUM_SDS_GERMLINES,
@@ -77,7 +77,7 @@ class SDSGermlineForm(GermlineForm):
         yield 1
         # sum_germ_num_gen
         yield min(len(self.gene_mentions), MAXIMUM_SDS_GERMLINES)
-        for germline in padded(
+        for germline in up_to_n(
             self.gene_mentions, n=MAXIMUM_SDS_GERMLINES, fillvalue=None
         ):
             yield from (

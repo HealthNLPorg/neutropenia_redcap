@@ -1,7 +1,7 @@
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass, field
 
-from more_itertools import padded
+from neutropenia_redcap.utils.iter import up_to_n
 
 from .generic import GermlineVariant
 
@@ -24,7 +24,7 @@ class SCNIRGermlineGeneMention:
         yield self.gene
         # sum_germ_num_var_{germline_index}
         yield min(len(self.variants), MAXIMUM_SCNIR_GERMLINE_VARIANTS)
-        for variant in padded(
+        for variant in up_to_n(
             self.variants, n=MAXIMUM_SCNIR_GERMLINE_VARIANTS, fillvalue=None
         ):
             yield from (

@@ -4,8 +4,8 @@ from functools import partial
 from itertools import chain
 
 import polars as pl
-from more_itertools import padded
 
+from neutropenia_redcap.utils.iter import up_to_n
 from neutropenia_redcap.variants.germline.scnir import (
     MAXIMUM_SCNIR_GERMLINE_VARIANTS,
     MAXIMUM_SCNIR_GERMLINES,
@@ -79,7 +79,7 @@ class SCNIRGermlineForm(GermlineForm):
         yield 1
         # sum_germ_num_gen
         yield min(len(self.gene_mentions), MAXIMUM_SCNIR_GERMLINES)
-        for germline in padded(
+        for germline in up_to_n(
             self.gene_mentions, n=MAXIMUM_SCNIR_GERMLINES, fillvalue=None
         ):
             yield from (
@@ -89,5 +89,13 @@ class SCNIRGermlineForm(GermlineForm):
             )
 
     def to_data_frame(self) -> pl.DataFrame:
-        data = [list(self.to_row())]
+        elements = list(self.to_row())
+        data = [elements]
+        if len(elements) != len(SCNIR_GERMLINE_SCHEMA):
+            print(f"Total {len(self.gene_mentions)}")
+            for idx, mention in enumerate(self.gene_mentions, start=1):
+                print(f"mention {idx} variants {len(mention.variants)}")
+            raise ValueError(
+                f"Elements {len(elements)} vs schema {len(SCNIR_GERMLINE_SCHEMA)}"
+            )
         return pl.DataFrame(data=data, schema=SCNIR_GERMLINE_SCHEMA, orient="row")
