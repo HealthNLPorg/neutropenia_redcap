@@ -1,12 +1,14 @@
 import argparse
 import logging
 import os
+from collections.abc import Iterable
 from itertools import chain
-from operator import itemgetter
+from operator import itemgetter, methodcaller
 
 import polars as pl
 from more_itertools import map_reduce
 
+from .redcap.forms.generic import REDCapForm
 from .utils.dataframe import mrn_cluster_to_forms
 from .utils.filename import get_mrn
 from .utils.formats import Formats
@@ -47,6 +49,10 @@ logging.basicConfig(
 )
 
 
+def cluster_forms(forms: Iterable[REDCapForm]) -> pl.DataFrame:
+    return pl.concat(map(methodcaller("to_data_frame"), forms))
+
+
 def tsv_to_redcap(
     data_location: str, output_dir: str, corpus: str, smoke_test: bool
 ) -> None:
@@ -68,8 +74,8 @@ def tsv_to_redcap(
     for form_type, form_frame in map_reduce(
         iterable=forms,
         keyfunc=itemgetter(0),
-        valuefunc=lambda t: t[1].to_data_frame(),
-        reducefunc=pl.concat,
+        valuefunc=itemgetter(1),
+        reducefunc=cluster_forms,
     ).items():
         if smoke_test:
             form_frame = form_frame.head(2)
