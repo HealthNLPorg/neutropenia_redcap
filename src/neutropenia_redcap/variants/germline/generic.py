@@ -69,23 +69,20 @@ class GermlineVariant(Variant):
         normalized_syntax_p = (
             self.syntax_p.lower() if self.syntax_p is not None else "None found"
         )
+        normalized_vaf = self.vaf.lower() if self.vaf is not None else "None found"
         match self.heterozygous:
-            case None:
-                heterozygous = "Unknown"
             case False:
                 heterozygous = "No"
             case True:
                 heterozygous = "Yes"
             case _:
-                raise ValueError(
-                    f"Improper value for heterozygous field of SCNIR variant {self.heterozygous} - should be a boolean or None"
-                )
+                heterozygous = "Unknown"
         normalized_variant_type = (
             VARIANT_TYPES[variant_type - 1] if variant_type is not None else "Unknown"
         )
         return (
             "Mention Summary:\n"
-            f"Gene: {self.gene.upper()} Nucleotide Syntax: {normalized_syntax_n} Protein Syntax: {normalized_syntax_p} Variant Type (Parsed from {source.title()}): {normalized_variant_type} Heterozygous: {heterozygous}\n\n"
+            f"Gene: {self.gene.upper()} Nucleotide Syntax: {normalized_syntax_n} Protein Syntax: {normalized_syntax_p} VAF: {normalized_vaf} Variant Type (Parsed from {source.title()}): {normalized_variant_type} Heterozygous: {heterozygous}\n\n"
         )
 
     def select_variant_type(self) -> tuple[int | None, str]:
