@@ -1,12 +1,14 @@
 import argparse
 import logging
 import os
+from collections.abc import Iterable
 from itertools import chain
-from operator import itemgetter
+from operator import itemgetter, methodcaller
 
 import polars as pl
 from more_itertools import map_reduce
 
+from .redcap.forms.generic import REDCapForm
 from .utils.dataframe import mrn_cluster_to_forms
 from .utils.filename import get_mrn
 from .utils.formats import Formats
@@ -37,7 +39,7 @@ parser.add_argument(
     choices=("scnir", "sds"),
     default="scnir",
 )
-parser.add_argument("--smoke_test", action="store_true")
+parser.add_argument("--debug", action="store_true", help="Debug options for REDCap")
 logger = logging.getLogger(__name__)
 
 logging.basicConfig(
@@ -47,13 +49,17 @@ logging.basicConfig(
 )
 
 
+def cluster_forms(forms: Iterable[REDCapForm]) -> pl.DataFrame:
+    return pl.concat(map(methodcaller("to_data_frame"), forms))
+
+
 def tsv_to_redcap(
-    data_location: str, output_dir: str, corpus: str, smoke_test: bool
+    data_location: str, output_dir: str, corpus: str, debug: bool
 ) -> None:
     raw_output_frame = pl.read_csv(data_location, separator="\t").with_columns(
         pl.col(pl.String).replace("__UNK__", None)
     )
-    if smoke_test:
+    if debug:
 
         def mrn_fn(fn: str) -> str:
             return f"UPLOAD_TEST_{get_mrn(fn)}"
@@ -68,11 +74,9 @@ def tsv_to_redcap(
     for form_type, form_frame in map_reduce(
         iterable=forms,
         keyfunc=itemgetter(0),
-        valuefunc=lambda t: t[1].to_data_frame(),
-        reducefunc=pl.concat,
+        valuefunc=itemgetter(1),
+        reducefunc=cluster_forms,
     ).items():
-        if smoke_test:
-            form_frame = form_frame.head(2)
         form_frame.write_csv(
             os.path.join(output_dir, f"{form_type.name.lower()}_redcap_upoad.csv")
         )
@@ -84,7 +88,7 @@ def convert(
     input_format: Formats,
     output_format: Formats,
     corpus: str,
-    smoke_test: bool,
+    debug: bool,
 ) -> None:
     if input_format == output_format:
         logger.error("Input and output formats are both %s, exiting", input_format.name)
@@ -94,7 +98,7 @@ def convert(
                 data_location=data_location,
                 output_dir=output_dir,
                 corpus=corpus,
-                smoke_test=smoke_test,
+                debug=debug,
             )
         case _:
             raise ValueError(
@@ -112,7 +116,7 @@ def main() -> None:
         input_format=input_format,
         output_format=output_format,
         corpus=args.corpus,
-        smoke_test=args.smoke_test,
+        debug=args.debug,
     )
 
 
