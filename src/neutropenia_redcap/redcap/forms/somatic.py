@@ -30,6 +30,13 @@ def variant_index_to_columns(variant_index: int) -> Sequence[str]:
 _SOMATIC_COLUMNS = chain(
     (
         "patient_id",
+        # Form type (in this case "somatic_testing_form")
+        "redcap_repeat_instrument",
+        # On our end will be 1
+        # unless maybe with using the REDCap API
+        # we can check whether a given MRN somatic testing
+        # form is already populated
+        "redcap_repeat_instance",
         # "Were any variants identified?"
         "sum_som",
         # "How many?"
@@ -63,6 +70,10 @@ class SomaticForm(REDCapForm):
     def _to_row(self) -> Iterable[str | bool | None]:
         # patient_id
         yield self.mrn
+        # redcap_repeat_instrument
+        yield "somatic_testing_form"
+        # redcap_repeat_instance
+        yield 1
         # sum_som, 1 == "Yes"
         yield 1
         # sum_som_num_var
