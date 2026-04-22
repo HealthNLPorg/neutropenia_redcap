@@ -27,31 +27,28 @@ def variant_index_to_columns(variant_index: int) -> Sequence[str]:
     ]
 
 
-COLUMNS = list(
-    chain(
-        (
-            "patient_id",
-            # "Were any variants identified?"
-            "sum_som",
-            # "How many?"
-            "sum_som_num_var",
-        ),
-        chain.from_iterable(
-            variant_index_to_columns(variant_index=variant_index)
-            for variant_index in range(
-                MINIMUM_SOMATIC_VARIANTS,
-                MAXIMUM_SOMATIC_VARIANTS + 1,
-            )
-        ),
-    )
+_SOMATIC_COLUMNS = chain(
+    (
+        "patient_id",
+        # "Were any variants identified?"
+        "sum_som",
+        # "How many?"
+        "sum_som_num_var",
+    ),
+    chain.from_iterable(
+        variant_index_to_columns(variant_index=variant_index)
+        for variant_index in range(
+            MINIMUM_SOMATIC_VARIANTS,
+            MAXIMUM_SOMATIC_VARIANTS + 1,
+        )
+    ),
 )
-
-SCHEMA = [(column_name, pl.String) for column_name in COLUMNS]
 
 
 @dataclass
 class SomaticForm(REDCapForm):
     gene_mentions: Collection[SomaticGeneMention]
+    schema = [(column_name, pl.String) for column_name in _SOMATIC_COLUMNS]
 
     @staticmethod
     def collect_variants(
@@ -60,7 +57,10 @@ class SomaticForm(REDCapForm):
         # In case we benefit from ordering later
         return list(chain.from_iterable(map(attrgetter("variants"), gene_mentions)))
 
-    def to_row(self) -> Iterable[str | bool | None]:
+    def to_row(self) -> Sequence[Sequence[str | bool | None]]:
+        return [list(self._to_row())]
+
+    def _to_row(self) -> Iterable[str | bool | None]:
         # patient_id
         yield self.mrn
         # sum_som, 1 == "Yes"
@@ -74,12 +74,3 @@ class SomaticForm(REDCapForm):
                 if variant is None
                 else variant.to_row_fragment()
             )
-
-    def to_data_frame(self) -> pl.DataFrame:
-        elements = list(self.to_row())
-        data = [elements]
-        if len(elements) != len(SCHEMA):
-            for idx, mention in enumerate(self.gene_mentions, start=1):
-                print(f"mention {idx} variants {len(mention.variants)}")
-            raise ValueError(f"Elements {len(elements)} vs schema {len(SCHEMA)}")
-        return pl.DataFrame(data=data, schema=SCHEMA, orient="row")

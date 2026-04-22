@@ -30,47 +30,44 @@ def germline_and_variant_index_to_columns(
     ]
 
 
-def germline_index_to_columns(germline_index: int) -> Sequence[str]:
+def germline_index_to_columns(germline_index: int) -> Iterable[str]:
     # Other way around from data labels format
     variant_index_to_columns = partial(
         germline_and_variant_index_to_columns, germline_index
     )
-    return [
-        f"sum_germ_gene_{germline_index}",
-        f"sum_germ_num_var_{germline_index}",
-        *chain.from_iterable(
+    return chain(
+        (f"sum_germ_gene_{germline_index}", f"sum_germ_num_var_{germline_index}"),
+        chain.from_iterable(
             map(
                 variant_index_to_columns,
                 range(MINIMUM_SDS_GERMLINE_VARIANTS, MAXIMUM_SDS_GERMLINE_VARIANTS + 1),
             )
         ),
-    ]
-
-
-SDS_GERMLINE_COLUMNS = list(
-    chain(
-        (
-            "patient_id",
-            "sum_germ",
-            "sum_germ_num_gen",
-        ),
-        chain.from_iterable(
-            germline_index_to_columns(germline_index)
-            for germline_index in range(
-                MINIMUM_SDS_GERMLINES, MAXIMUM_SDS_GERMLINES + 1
-            )
-        ),
     )
-)
 
-SDS_GERMLINE_SCHEMA = [(column_name, pl.String) for column_name in SDS_GERMLINE_COLUMNS]
+
+_SDS_GERMLINE_COLUMNS = chain(
+    (
+        "patient_id",
+        "sum_germ",
+        "sum_germ_num_gen",
+    ),
+    chain.from_iterable(
+        germline_index_to_columns(germline_index)
+        for germline_index in range(MINIMUM_SDS_GERMLINES, MAXIMUM_SDS_GERMLINES + 1)
+    ),
+)
 
 
 @dataclass
 class SDSGermlineForm(GermlineForm):
     gene_mentions: Collection[SDSGermlineGeneMention]
+    schema = [(column_name, pl.String) for column_name in _SDS_GERMLINE_COLUMNS]
 
-    def to_row(self) -> Iterable[str | bool | None]:
+    def to_row(self) -> Sequence[Sequence[str | bool | None]]:
+        return [list(self._to_row())]
+
+    def _to_row(self) -> Iterable[str | bool | None]:
         # patient_id
         yield self.mrn
         # sum_germ, 1 == "Yes"
@@ -85,7 +82,3 @@ class SDSGermlineForm(GermlineForm):
                 if germline is None
                 else germline.to_row_fragment()
             )
-
-    def to_data_frame(self) -> pl.DataFrame:
-        data = [list(self.to_row())]
-        return pl.DataFrame(data=data, schema=SDS_GERMLINE_SCHEMA, orient="row")
