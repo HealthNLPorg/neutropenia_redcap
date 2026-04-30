@@ -154,10 +154,10 @@ class SomaticVariant(Variant):
 
     @staticmethod
     def vaf_format(vaf: str) -> str | None:
-        # numerical_part = vaf.split("%")[0]
-        # if all(substr.isnumeric() for substr in numerical_part.split(".")):
-        #     successful_float_repr = float(numerical_part)
-        #     return str(successful_float_repr)
+        numerical_part = vaf.split("%")[0]
+        if all(substr.isnumeric() for substr in numerical_part.split(".")):
+            successful_float_repr = float(numerical_part)
+            return str(successful_float_repr)
         return None
 
 
