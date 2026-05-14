@@ -64,7 +64,8 @@ class SDSGermlineForm(GermlineForm):
     gene_mentions: Collection[SDSGermlineGeneMention]
     schema = [(column_name, pl.String) for column_name in _SDS_GERMLINE_COLUMNS]
 
-    def to_row(self) -> Sequence[Sequence[str | bool | None]]:
+    def to_rows(self) -> Sequence[Sequence[str | bool | None]]:
+        # Singleton row for now
         return [list(self._to_row())]
 
     def _to_row(self) -> Iterable[str | bool | None]:

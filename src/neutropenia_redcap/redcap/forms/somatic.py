@@ -1,11 +1,11 @@
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
-from itertools import chain
+from itertools import batched, chain
 from operator import attrgetter
 
 import polars as pl
+from more_itertools import padded
 
-from neutropenia_redcap.utils.iter import up_to_n
 from neutropenia_redcap.variants.somatic import (
     MAXIMUM_SOMATIC_VARIANTS,
     MINIMUM_SOMATIC_VARIANTS,
@@ -60,14 +60,22 @@ class SomaticForm(REDCapForm):
     @staticmethod
     def collect_variants(
         gene_mentions: Collection[SomaticGeneMention],
-    ) -> Sequence[SomaticVariant]:
+    ) -> Iterable[SomaticVariant]:
         # In case we benefit from ordering later
-        return list(chain.from_iterable(map(attrgetter("variants"), gene_mentions)))
+        return chain.from_iterable(map(attrgetter("variants"), gene_mentions))
 
-    def to_row(self) -> Sequence[Sequence[str | bool | None]]:
-        return [list(self._to_row())]
+    def to_rows(self) -> Sequence[Sequence[str | bool | None]]:
+        return [
+            list(self._to_row(variants))
+            for variants in batched(
+                SomaticForm.collect_variants(self.gene_mentions),
+                n=MAXIMUM_SOMATIC_VARIANTS,
+            )
+        ]
 
-    def _to_row(self) -> Iterable[str | bool | None]:
+    def _to_row(
+        self, variants: Iterable[SomaticVariant]
+    ) -> Iterable[str | bool | None]:
         # patient_id
         yield self.mrn
         # redcap_repeat_instrument
@@ -77,9 +85,7 @@ class SomaticForm(REDCapForm):
         # sum_som, 1 == "Yes"
         yield 1
         # sum_som_num_var
-        variants = SomaticForm.collect_variants(self.gene_mentions)
-        yield min(len(variants), MAXIMUM_SOMATIC_VARIANTS)
-        for variant in up_to_n(variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None):
+        for variant in padded(variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None):
             yield from (
                 SomaticVariant.blank_row_fragment(SomaticVariant.total_variant_attrs)
                 if variant is None

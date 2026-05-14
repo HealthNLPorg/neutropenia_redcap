@@ -22,8 +22,8 @@ class REDCapForm(ABC):
     schema: ClassVar[Sequence[tuple[str, PolarsDataType]]]
 
     @abstractmethod
-    def to_row(self) -> Sequence[Sequence[Any]]:
+    def to_rows(self) -> Sequence[Sequence[Any]]:
         return []
 
     def to_data_frame(self) -> pl.DataFrame:
-        return pl.DataFrame(data=self.to_row(), schema=self.schema, orient="row")
+        return pl.DataFrame(data=self.to_rows(), schema=self.schema, orient="row")
