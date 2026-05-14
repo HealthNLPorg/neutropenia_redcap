@@ -26,4 +26,9 @@ class REDCapForm(ABC):
         return []
 
     def to_data_frame(self) -> pl.DataFrame:
-        return pl.DataFrame(data=self.to_rows(), schema=self.schema, orient="row")
+        try:
+            return pl.DataFrame(data=self.to_rows(), schema=self.schema, orient="row")
+        except Exception:
+            print(self.schema)
+            print(self.to_rows()[0])
+            raise ValueError(f"{len(self.schema)} {len(self.to_rows()[0])}")

@@ -66,11 +66,7 @@ class SCNIRGermlineForm(GermlineForm):
     gene_mentions: Collection[SCNIRGermlineGeneMention]
     schema = [(column_name, pl.String) for column_name in _SCNIR_GERMLINE_COLUMNS]
 
-    def to_rows(self) -> Sequence[Sequence[str | bool | None]]:
-        # Singleton row for now
-        return [list(self._to_row())]
-
-    def _to_row(self) -> Iterable[str | bool | None]:
+    def to_row(self) -> Iterable[str | bool | None]:
         # patient_id
         yield self.mrn
         # sum_germ, 1 == "Yes"

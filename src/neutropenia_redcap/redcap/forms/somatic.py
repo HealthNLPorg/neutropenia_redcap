@@ -1,10 +1,11 @@
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from itertools import batched, chain
-from operator import attrgetter
+from operator import attrgetter, methodcaller
+from neutropenia_redcap.utils.iter import up_to_n
 
 import polars as pl
-from more_itertools import padded
+from more_itertools import padded, partition
 
 from neutropenia_redcap.variants.somatic import (
     MAXIMUM_SOMATIC_VARIANTS,
@@ -62,7 +63,18 @@ class SomaticForm(REDCapForm):
         gene_mentions: Collection[SomaticGeneMention],
     ) -> Iterable[SomaticVariant]:
         # In case we benefit from ordering later
-        return chain.from_iterable(map(attrgetter("variants"), gene_mentions))
+        all_variants = list(
+            chain.from_iterable(map(attrgetter("variants"), gene_mentions))
+        )
+        empty_variants_iter, non_empty_variants_iter = partition(
+            methodcaller("is_non_empty"), all_variants
+        )
+        non_empty_variants = list(non_empty_variants_iter)
+        # Keep most informative variants if they are available
+        if len(non_empty_variants) > 0:
+            return non_empty_variants
+        # If only empties retain them for the form logic
+        return empty_variants_iter
 
     def to_rows(self) -> Sequence[Sequence[str | bool | None]]:
         return [
@@ -74,7 +86,7 @@ class SomaticForm(REDCapForm):
         ]
 
     def _to_row(
-        self, variants: Iterable[SomaticVariant]
+        self, variants: Sequence[SomaticVariant]
     ) -> Iterable[str | bool | None]:
         # patient_id
         yield self.mrn
@@ -85,7 +97,8 @@ class SomaticForm(REDCapForm):
         # sum_som, 1 == "Yes"
         yield 1
         # sum_som_num_var
-        for variant in padded(variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None):
+        yield len(variants)
+        for variant in up_to_n(variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None):
             yield from (
                 SomaticVariant.blank_row_fragment(SomaticVariant.total_variant_attrs)
                 if variant is None
