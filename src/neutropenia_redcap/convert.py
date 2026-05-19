@@ -49,7 +49,7 @@ logging.basicConfig(
 )
 
 
-def cluster_forms(forms: Iterable[REDCapForm]) -> pl.DataFrame:
+def cluster_forms(forms: Iterable[REDCapForm]) -> pl.LazyFrame:
     return pl.concat(map(methodcaller("to_data_frame"), forms))
 
 
@@ -75,7 +75,7 @@ def tsv_to_redcap(
     extant_form_types = list(form_bucket)
     for form_type in extant_form_types:
         frame = cluster_forms(map(itemgetter(1), form_bucket[form_type]))
-        frame.write_csv(
+        frame.sink_csv(
             os.path.join(output_dir, f"{form_type.name.lower()}_redcap_upload.csv")
         )
 

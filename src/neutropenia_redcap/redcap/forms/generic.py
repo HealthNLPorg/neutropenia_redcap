@@ -25,9 +25,9 @@ class REDCapForm(ABC):
     def to_rows(self) -> Sequence[Sequence[Any]]:
         return []
 
-    def to_data_frame(self) -> pl.DataFrame:
+    def to_data_frame(self) -> pl.LazyFrame:
         try:
-            return pl.DataFrame(data=self.to_rows(), schema=self.schema, orient="row")
+            return pl.LazyFrame(data=self.to_rows(), schema=self.schema, orient="row")
         except Exception:
             print(self.schema)
             print(self.to_rows()[0])

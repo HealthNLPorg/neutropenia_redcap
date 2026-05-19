@@ -2,11 +2,11 @@ from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from itertools import batched, chain
 from operator import attrgetter, methodcaller
-from neutropenia_redcap.utils.iter import up_to_n
 
 import polars as pl
-from more_itertools import padded, partition
+from more_itertools import partition
 
+from neutropenia_redcap.utils.iter import up_to_n
 from neutropenia_redcap.variants.somatic import (
     MAXIMUM_SOMATIC_VARIANTS,
     MINIMUM_SOMATIC_VARIANTS,
