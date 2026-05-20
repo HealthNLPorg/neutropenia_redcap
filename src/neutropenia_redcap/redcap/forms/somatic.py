@@ -61,7 +61,7 @@ class SomaticForm(REDCapForm):
     @staticmethod
     def collect_variants(
         gene_mentions: Collection[SomaticGeneMention],
-    ) -> Iterable[SomaticVariant]:
+    ) -> tuple[Iterable[SomaticVariant], bool]:
         # In case we benefit from ordering later
         all_variants = list(
             chain.from_iterable(map(attrgetter("variants"), gene_mentions))
@@ -72,21 +72,24 @@ class SomaticForm(REDCapForm):
         non_empty_variants = list(non_empty_variants_iter)
         # Keep most informative variants if they are available
         if len(non_empty_variants) > 0:
-            return non_empty_variants
+            return non_empty_variants, True
         # If only empties retain them for the form logic
-        return empty_variants_iter
+        return empty_variants_iter, False
 
     def to_rows(self) -> Sequence[Sequence[str | bool | None]]:
+        variants, variants_are_non_empty = SomaticForm.collect_variants(
+            self.gene_mentions
+        )
         return [
-            list(self._to_row(variants))
+            list(self._to_row(variants, variants_are_non_empty))
             for variants in batched(
-                SomaticForm.collect_variants(self.gene_mentions),
+                variants,
                 n=MAXIMUM_SOMATIC_VARIANTS,
             )
         ]
 
     def _to_row(
-        self, variants: Sequence[SomaticVariant]
+        self, variants: Sequence[SomaticVariant], variants_are_non_empty: bool
     ) -> Iterable[str | bool | None]:
         # patient_id
         yield self.mrn
@@ -95,12 +98,13 @@ class SomaticForm(REDCapForm):
         # redcap_repeat_instance
         yield 1
         # sum_som, 1 == "Yes"
-        yield 1
+        yield 1 if variants_are_non_empty else None
         # sum_som_num_var
-        yield len(variants)
+        yield len(variants) if variants_are_non_empty else None
         for variant in up_to_n(variants, n=MAXIMUM_SOMATIC_VARIANTS, fillvalue=None):
             yield from (
                 SomaticVariant.blank_row_fragment(SomaticVariant.total_variant_attrs)
-                if variant is None
+                if variant is None or variants_are_non_empty
                 else variant.to_row_fragment()
             )
+        # TODO figure out form level comments for summary

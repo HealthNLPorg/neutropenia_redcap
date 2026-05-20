@@ -67,17 +67,27 @@ class SCNIRGermlineForm(GermlineForm):
     schema = [(column_name, pl.String) for column_name in _SCNIR_GERMLINE_COLUMNS]
 
     def to_row(self) -> Iterable[str | bool | None]:
+        relevant_mentions = [
+            mention
+            for mention in self.gene_mentions
+            if any(variant.is_non_empty() for variant in mention.variants)
+        ]
         # patient_id
         yield self.mrn
         # sum_germ, 1 == "Yes"
-        yield 1
+        yield 1 if len(relevant_mentions) > 0 else None
         # sum_germ_num_gen
-        yield min(len(self.gene_mentions), MAXIMUM_SCNIR_GERMLINES)
+        yield (
+            min(len(relevant_mentions), MAXIMUM_SCNIR_GERMLINES)
+            if len(relevant_mentions) > 0
+            else None
+        )
         for germline in up_to_n(
-            self.gene_mentions, n=MAXIMUM_SCNIR_GERMLINES, fillvalue=None
+            relevant_mentions, n=MAXIMUM_SCNIR_GERMLINES, fillvalue=None
         ):
             yield from (
                 SCNIRGermlineGeneMention.blank_row_fragment()
                 if germline is None
                 else germline.to_row_fragment()
             )
+        # TODO form level summary comment
