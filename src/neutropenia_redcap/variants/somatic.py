@@ -42,7 +42,7 @@ class SomaticVariant(Variant):
         # sum_som_path_{variant_index}
         yield variant_type
         # sum_som_vaf_{variant_index}
-        yield self.vaf
+        yield SomaticVariant.vaf_format(self.vaf) if self.vaf is not None else None
         # sum_som_comment_{variant_index}
         yield self.build_comment(variant_type=variant_type, source=source)
 
@@ -151,6 +151,14 @@ class SomaticVariant(Variant):
     def blank_row_fragment(total_variant_attrs: int) -> Iterable[None]:
         for _ in range(total_variant_attrs):
             yield None
+
+    @staticmethod
+    def vaf_format(vaf: str) -> str | None:
+        numerical_part = vaf.split("%")[0]
+        if all(substr.isnumeric() for substr in numerical_part.split(".")):
+            successful_float_repr = float(numerical_part)
+            return str(successful_float_repr)
+        return None
 
 
 @dataclass(eq=True, frozen=True)

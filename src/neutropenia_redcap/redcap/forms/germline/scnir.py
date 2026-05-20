@@ -28,15 +28,14 @@ def germline_and_variant_index_to_columns(
     ]
 
 
-def germline_index_to_columns(germline_index: int) -> Sequence[str]:
+def germline_index_to_columns(germline_index: int) -> Iterable[str]:
     # Other way around from data labels format
     variant_index_to_columns = partial(
         germline_and_variant_index_to_columns, germline_index
     )
-    return [
-        f"sum_germ_gene_{germline_index}",
-        f"sum_germ_num_var_{germline_index}",
-        *chain.from_iterable(
+    return chain(
+        (f"sum_germ_gene_{germline_index}", f"sum_germ_num_var_{germline_index}"),
+        chain.from_iterable(
             map(
                 variant_index_to_columns,
                 range(
@@ -44,58 +43,51 @@ def germline_index_to_columns(germline_index: int) -> Sequence[str]:
                 ),
             )
         ),
-    ]
-
-
-SCNIR_GERMLINE_COLUMNS = list(
-    chain(
-        (
-            "patient_id",
-            "sum_germ",
-            "sum_germ_num_gen",
-        ),
-        chain.from_iterable(
-            germline_index_to_columns(germline_index)
-            for germline_index in range(
-                MINIMUM_SCNIR_GERMLINES, MAXIMUM_SCNIR_GERMLINES + 1
-            )
-        ),
     )
-)
 
-SCNIR_GERMLINE_SCHEMA = [
-    (column_name, pl.String) for column_name in SCNIR_GERMLINE_COLUMNS
-]
+
+_SCNIR_GERMLINE_COLUMNS = chain(
+    (
+        "patient_id",
+        "sum_germ",
+        "sum_germ_num_gen",
+    ),
+    chain.from_iterable(
+        germline_index_to_columns(germline_index)
+        for germline_index in range(
+            MINIMUM_SCNIR_GERMLINES, MAXIMUM_SCNIR_GERMLINES + 1
+        )
+    ),
+)
 
 
 @dataclass
 class SCNIRGermlineForm(GermlineForm):
     gene_mentions: Collection[SCNIRGermlineGeneMention]
+    schema = [(column_name, pl.String) for column_name in _SCNIR_GERMLINE_COLUMNS]
 
     def to_row(self) -> Iterable[str | bool | None]:
+        relevant_mentions = [
+            mention
+            for mention in self.gene_mentions
+            if any(variant.is_non_empty() for variant in mention.variants)
+        ]
         # patient_id
         yield self.mrn
         # sum_germ, 1 == "Yes"
-        yield 1
+        yield 1 if len(relevant_mentions) > 0 else None
         # sum_germ_num_gen
-        yield min(len(self.gene_mentions), MAXIMUM_SCNIR_GERMLINES)
+        yield (
+            min(len(relevant_mentions), MAXIMUM_SCNIR_GERMLINES)
+            if len(relevant_mentions) > 0
+            else None
+        )
         for germline in up_to_n(
-            self.gene_mentions, n=MAXIMUM_SCNIR_GERMLINES, fillvalue=None
+            relevant_mentions, n=MAXIMUM_SCNIR_GERMLINES, fillvalue=None
         ):
             yield from (
                 SCNIRGermlineGeneMention.blank_row_fragment()
                 if germline is None
                 else germline.to_row_fragment()
             )
-
-    def to_data_frame(self) -> pl.DataFrame:
-        elements = list(self.to_row())
-        data = [elements]
-        if len(elements) != len(SCNIR_GERMLINE_SCHEMA):
-            print(f"Total {len(self.gene_mentions)}")
-            for idx, mention in enumerate(self.gene_mentions, start=1):
-                print(f"mention {idx} variants {len(mention.variants)}")
-            raise ValueError(
-                f"Elements {len(elements)} vs schema {len(SCNIR_GERMLINE_SCHEMA)}"
-            )
-        return pl.DataFrame(data=data, schema=SCNIR_GERMLINE_SCHEMA, orient="row")
+        # TODO form level summary comment

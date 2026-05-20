@@ -36,6 +36,18 @@ class Variant(ABC):
     # protein syntax, nucleotide syntax, variant type, comment
     total_variant_attrs: ClassVar[int | None] = None
 
+    def is_empty(self) -> bool:
+        return (
+            self.syntax_p is None
+            and self.syntax_n is None
+            and self.variant_type is None
+            and self.vaf is None
+            and self.heterozygous is None
+        )
+
+    def is_non_empty(self) -> bool:
+        return not self.is_empty()
+
     @abstractmethod
     def to_row_fragment(self, blank: bool = False) -> Iterable[str | bool | None]:
         return []

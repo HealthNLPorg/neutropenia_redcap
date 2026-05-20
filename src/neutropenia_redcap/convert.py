@@ -6,7 +6,7 @@ from itertools import chain
 from operator import itemgetter, methodcaller
 
 import polars as pl
-from more_itertools import map_reduce
+from more_itertools import bucket
 
 from .redcap.forms.generic import REDCapForm
 from .utils.dataframe import mrn_cluster_to_forms
@@ -49,7 +49,7 @@ logging.basicConfig(
 )
 
 
-def cluster_forms(forms: Iterable[REDCapForm]) -> pl.DataFrame:
+def cluster_forms(forms: Iterable[REDCapForm]) -> pl.LazyFrame:
     return pl.concat(map(methodcaller("to_data_frame"), forms))
 
 
@@ -71,14 +71,12 @@ def tsv_to_redcap(
             MRN=raw_output_frame["Filename"].map_elements(mrn_fn)
         ).group_by("MRN")
     )
-    for form_type, form_frame in map_reduce(
-        iterable=forms,
-        keyfunc=itemgetter(0),
-        valuefunc=itemgetter(1),
-        reducefunc=cluster_forms,
-    ).items():
-        form_frame.write_csv(
-            os.path.join(output_dir, f"{form_type.name.lower()}_redcap_upoad.csv")
+    form_bucket = bucket(forms, key=itemgetter(0))
+    extant_form_types = list(form_bucket)
+    for form_type in extant_form_types:
+        frame = cluster_forms(map(itemgetter(1), form_bucket[form_type]))
+        frame.sink_csv(
+            os.path.join(output_dir, f"{form_type.name.lower()}_redcap_upload.csv")
         )
 
 

@@ -63,7 +63,7 @@ def parse_variant_types(
 
 def get_variant(
     gene: str,
-    clustered_attributes: tuple[str, ...],
+    clustered_attributes: tuple[str | None, ...],
     clustered_attribute_df: pl.DataFrame,
 ) -> Variant:
     syntax_n, syntax_p, variant_type, vaf = clustered_attributes
@@ -86,11 +86,12 @@ def get_variant(
                 )
         case _:
             logger.warning(
-                "Variant for gene %s at protein %s nucleotide %s has %d distinct variant type, selecting most common variant type",
+                "Variant for gene %s at protein %s nucleotide %s has %d distinct variant types (%s), selecting most common variant type",
                 gene,
                 syntax_p,
                 syntax_n,
                 total_distinct_variant_types,
+                variant_types,
             )
             selected_variant_type, _ = next(
                 filter(
