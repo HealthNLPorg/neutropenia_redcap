@@ -1,14 +1,16 @@
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
-from functools import partial
+from enum import StrEnum
 from itertools import chain
 
 import polars as pl
 
 from neutropenia_redcap.utils.iter import up_to_n
 from neutropenia_redcap.variants.germline.sds import (
+    MAXIMUM_SDS_ALLELES,
     MAXIMUM_SDS_GERMLINE_VARIANTS,
     MAXIMUM_SDS_GERMLINES,
+    MINIMUM_SDS_ALLELES,
     MINIMUM_SDS_GERMLINE_VARIANTS,
     MINIMUM_SDS_GERMLINES,
     SDSGermlineGeneMention,
@@ -17,6 +19,36 @@ from neutropenia_redcap.variants.germline.sds import (
 from ..generic import (
     GermlineForm,
 )
+
+
+# gotta love ridiculous database internal shorthand
+class Parent(StrEnum):
+    father = "fath"
+    mother = "mot"
+
+
+TAILING_COLUMNS = ("vus_gen_sds", "comments_gene_gen_sds", "gen_family")
+
+
+def parent_and_allele_indexed_columns(
+    parent: Parent, allele_index: int
+) -> Sequence[str]:
+    if not (1 <= allele_index <= 2):
+        raise ValueError(f"Unsupported parental allele index: {allele_index}")
+    return (
+        f"{parent.value}_allele{allele_index}_gen_sds",
+        f"{parent.value}_allele{allele_index}_oth_gen_sds",
+    )
+
+
+def parent_indexed_columns(parent: Parent) -> Iterable[str]:
+    return chain(
+        chain.from_iterable(
+            parent_and_allele_indexed_columns(parent=parent, allele_index=allele_index)
+            for allele_index in range(MINIMUM_SDS_ALLELES, MAXIMUM_SDS_ALLELES + 1)
+        ),
+        (f"{parent.value}_vus",),
+    )
 
 
 def gene_and_variant_indexed_columns(

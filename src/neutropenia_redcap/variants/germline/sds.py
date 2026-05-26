@@ -11,6 +11,9 @@ MAXIMUM_SDS_GERMLINES = 3
 MINIMUM_SDS_GERMLINE_VARIANTS = 1
 MAXIMUM_SDS_GERMLINE_VARIANTS = 4
 
+MINIMUM_SDS_ALLELES = 1
+MAXIMUM_SDS_ALLELES = 2
+
 
 @dataclass(eq=True, frozen=True)
 class SDSGermlineGeneMention(GermlineGeneMention):
