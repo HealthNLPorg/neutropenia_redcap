@@ -27,7 +27,14 @@ class Parent(StrEnum):
     mother = "mot"
 
 
-TAILING_COLUMNS = ("vus_gen_sds", "comments_gene_gen_sds", "gen_family")
+INTERVENING_COLUMNS = ("vus_gen_sds", "comments_gene_gen_sds", "gen_family")
+
+FINAL_COLUMNS = (
+    "sdbs_upload_gen_sds",
+    "parental_upload_gen_sds",
+    "msc_upload_gen_sds",
+    "genetic_comments",
+)
 
 
 def parent_and_allele_indexed_columns(
@@ -105,6 +112,11 @@ _SDS_GERMLINE_COLUMNS = chain(
         gene_indexed_columns(gene_index=germline_index)
         for germline_index in range(MINIMUM_SDS_GERMLINES, MAXIMUM_SDS_GERMLINES + 1)
     ),
+    INTERVENING_COLUMNS,
+    chain.from_iterable(
+        parent_indexed_columns(parent=parent) for parent in sorted(Parent, reverse=True)
+    ),
+    FINAL_COLUMNS,
 )
 
 
