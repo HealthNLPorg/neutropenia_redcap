@@ -14,7 +14,7 @@ from neutropenia_redcap.variants.germline.sds import (
     SDSGermlineGeneMention,
 )
 
-from .generic import (
+from ..generic import (
     GermlineForm,
 )
 
