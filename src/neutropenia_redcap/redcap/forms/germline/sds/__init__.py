@@ -40,7 +40,7 @@ FINAL_COLUMNS = (
 def parent_and_allele_indexed_columns(
     parent: Parent, allele_index: int
 ) -> Sequence[str]:
-    if not (1 <= allele_index <= 2):
+    if not (MINIMUM_SDS_ALLELES <= allele_index <= MAXIMUM_SDS_ALLELES):
         raise ValueError(f"Unsupported parental allele index: {allele_index}")
     return (
         f"{parent.value}_allele{allele_index}_gen_sds",
@@ -58,39 +58,41 @@ def parent_indexed_columns(parent: Parent) -> Iterable[str]:
     )
 
 
+def allele_index_schema(gene_index: int) -> str:
+    if gene_index == MINIMUM_SDS_GERMLINES:
+        return ""
+    elif MINIMUM_SDS_GERMLINES < gene_index <= MAXIMUM_SDS_GERMLINES:
+        return f"_gene{gene_index}"
+    else:
+        raise ValueError(f"Unsupported index {gene_index}")
+
+
 def gene_and_variant_indexed_columns(
     gene_index: int, variant_index: int
 ) -> Sequence[str]:
     gene_verbal_ordinals = ["gene_", "second", "third"]
     suffix_ordinals = ["", "_2", "_3"]
-    if not (1 <= variant_index <= 4):
+    if not (
+        MINIMUM_SDS_GERMLINE_VARIANTS <= variant_index <= MAXIMUM_SDS_GERMLINE_VARIANTS
+    ):
         raise ValueError(f"Unsupported variant index: {variant_index}")
-    if not (1 <= gene_index <= 3):
+    if not (MINIMUM_SDS_GERMLINES <= gene_index <= MAXIMUM_SDS_GERMLINES):
         raise ValueError(f"Unsupported gene index: {gene_index}")
-
-    def alleles_nonsense(_gene_index: int) -> str:
-        match _gene_index:
-            case 1:
-                return ""
-            case 2 | 3:
-                return f"_gene{_gene_index}"
-            case other:
-                raise ValueError(f"Unsupported index {other}")
 
     return (
         f"{gene_verbal_ordinals[gene_index - 1]}mut_gen_sds",
         f"gene_mut_gen_sds_{gene_index}",  # What gene has mutations and/or was tested
         f"gene_mut_oth{suffix_ordinals[gene_index - 1]}",
-        f"alleles{alleles_nonsense(gene_index)}_gen_sds",  # Number of variants in gene
-        f"allele{variant_index}{alleles_nonsense(gene_index)}_gen_sds",
-        f"allele{variant_index}{alleles_nonsense(gene_index)}_oth_gen_sds",
-        f"protein{variant_index}{alleles_nonsense(gene_index)}_gen_sds",
-        f"protein{variant_index}{alleles_nonsense(gene_index)}_oth_gen_sds",
+        f"alleles{allele_index_schema(gene_index)}_gen_sds",  # Number of variants in gene
+        f"allele{variant_index}{allele_index_schema(gene_index)}_gen_sds",
+        f"allele{variant_index}{allele_index_schema(gene_index)}_oth_gen_sds",
+        f"protein{variant_index}{allele_index_schema(gene_index)}_gen_sds",
+        f"protein{variant_index}{allele_index_schema(gene_index)}_oth_gen_sds",
     )
 
 
 def gene_indexed_columns(gene_index: int) -> Iterable[str]:
-    if not (1 <= gene_index <= 3):
+    if not (MINIMUM_SDS_GERMLINES <= gene_index <= MAXIMUM_SDS_GERMLINES):
         raise ValueError(f"Unsupported gene index: {gene_index}")
     return chain.from_iterable(
         gene_and_variant_indexed_columns(
@@ -128,10 +130,12 @@ class SDSGermlineForm(GermlineForm):
     def to_row(self) -> Iterable[str | bool | None]:
         # patient_id
         yield self.mrn
-        # sum_germ, 1 == "Yes"
-        yield 1
-        # sum_germ_num_gen
-        yield min(len(self.gene_mentions), MAXIMUM_SDS_GERMLINES)
+        # pat_done_gen_sds
+        yield (
+            1 if len(self.gene_mentions) > 0 else 98
+        )  # Other values are 99 - missing and 0 - not done but that's too much certainty on our end
+        # gene_pos_gen_sds
+        yield None  # Until we figure out what to do
         for germline in up_to_n(
             self.gene_mentions, n=MAXIMUM_SDS_GERMLINES, fillvalue=None
         ):
