@@ -30,14 +30,14 @@ class GermlineVariant(Variant):
     heterozygous: (
         bool | None
     )  # True for is heterozygous, False for definitely isn't, None for unknown
-    homozygous: (
-        bool | None
-    )  # True for is homozygous, False for definitely isn't, None for unknown
     text_sources: Collection[TextSource] = field(compare=False)
     specimen_collection_dates: Collection[date] = field(compare=False)
     sample_sources: Collection[str] = field(compare=False)
     # protein syntax, nucleotide syntax, variant type, comment
     total_variant_attrs: ClassVar[int] = 4
+    homozygous: bool | None = (
+        None  # True for is homozygous, False for definitely isn't, None for unknown
+    )
 
     # "Some things are silly /and/ evil"
     # Elroy Patashnik, Community S06E03
@@ -71,7 +71,7 @@ class GermlineVariant(Variant):
     def __post_init__(self) -> None:
         if self.heterozygous is not None and self.heterozygous:
             if self.homozygous is not None and self.homozygous:
-                raise ValueError(f"Both homozygous and heterozygous set to True")
+                raise ValueError("Both homozygous and heterozygous set to True")
 
     # Another weird thing is I can't find the field where the specimen collection date
     # would go

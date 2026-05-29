@@ -1,6 +1,8 @@
-from enum import IntEnum
 from collections.abc import Set
-from attrs import define, field
+from enum import IntEnum
+
+from attrs import Factory, define
+
 from neutropenia_redcap.variants.germline.generic import GermlineVariant
 
 
@@ -10,11 +12,11 @@ class TargetNotFound(IntEnum):
     none_detected = 99
 
 
-@define
+@define(frozen=True)
 class Target:
-    radio_button_value: int = field()
-    gene: str = field()
-    attributes: Set[str] = field()
+    radio_button_value: int
+    gene: str
+    attributes: Set[str] = Factory(frozenset)
 
     def match_germline_variant(
         self, germline_variant: GermlineVariant, literal=False
@@ -34,9 +36,9 @@ class Target:
         )
 
 
-@define
+@define(frozen=True)
 class TargetCollection:
-    targets: Set[Target] = field()
+    targets: Set[Target] = Factory(frozenset)
 
     def match_target(self, germline_variant: GermlineVariant, literal=False) -> int:
         matches = {
